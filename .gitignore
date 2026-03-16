@@ -76,3 +76,5 @@ Thumbs.db
 *~
 ###########################################
 HELP.md
+###########################################
+/src/main/resources/application.properties
