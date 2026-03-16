@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;
 import java.util.Optional;
+import java.util.List;
 
 /**
  * Repository interface for {@link Booking} entities.
@@ -21,4 +22,12 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * @return an Optional containing the booking if found, or empty otherwise
      */
     Optional<Booking> findByUserIdAndEventId(UUID userId, UUID eventId);
+
+    /**
+     * Retrieves all bookings made by a specific user.
+     *
+     * @param userId the UUID of the user
+     * @return list of bookings belonging to the user
+     */
+    List<Booking> findByUserId(UUID userId);
 }

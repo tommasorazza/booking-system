@@ -23,4 +23,5 @@ public class UserDto {
 
     /** Role of the user in the system (e.g., ADMIN, USER). */
     private Role role;
+
 }

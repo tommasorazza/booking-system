@@ -4,6 +4,7 @@ import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.UserDto;
 import com.razza.bookingsystem.mapper.UserMapper;
 import com.razza.bookingsystem.repository.UserRepository;
+import com.razza.bookingsystem.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder; // for hashing passwords
+    private final JwtService jwtService;
 
     /**
      * Registers a new user with a default role.
@@ -47,5 +49,17 @@ public class AuthService {
 
         User saved = userRepository.save(user);
         return userMapper.toDto(saved);
+    }
+
+    public String login(String email, String password) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new RuntimeException("Invalid email or password");
+        }
+
+        return jwtService.generateToken(user.getEmail());
     }
 }

@@ -42,7 +42,7 @@ public class EventService {
      * @return the corresponding EventDto
      * @throws RuntimeException if the event cannot be found
      */
-    public EventDto getEvent(UUID id) {
+    public EventDto getEventById(UUID id) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
         return eventMapper.toDto(event);
@@ -84,7 +84,7 @@ public class EventService {
      * @param pageable pagination and sorting configuration
      * @return a page of EventDto objects
      */
-    public Page<EventDto> listEvents(Pageable pageable) {
+    public Page<EventDto> getAllEvents(Pageable pageable) {
         return eventRepository.findAll(pageable)
                 .map(eventMapper::toDto);
     }

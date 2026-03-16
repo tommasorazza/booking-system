@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.List;
 
 /**
  * Service responsible for managing bookings.
@@ -93,5 +94,18 @@ public class BookingService {
 
         booking.setStatus(com.razza.bookingsystem.domain.Status.CANCELLED);
         bookingRepository.save(booking);
+    }
+
+    /**
+     * Retrieves all bookings made by a specific user.
+     *
+     * @param userId the UUID of the user
+     * @return list of BookingDto objects
+     */
+    public List<BookingDto> getUserBookings(UUID userId) {
+        return bookingRepository.findByUserId(userId)
+                .stream()
+                .map(bookingMapper::toDto)
+                .toList();
     }
 }
