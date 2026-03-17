@@ -1,5 +1,6 @@
 package com.razza.bookingsystem.controller;
 
+import com.razza.bookingsystem.dto.LoginRequest;
 import com.razza.bookingsystem.dto.SignupRequest;
 import com.razza.bookingsystem.dto.UserDto;
 import com.razza.bookingsystem.service.AuthService;
@@ -36,8 +37,7 @@ public class AuthController {
      * @return JWT token as a String
      */
     @PostMapping("/login")
-    public String login(@RequestParam String email,
-                        @RequestParam String password) {
-        return authService.login(email, password);
+    public String login(@RequestBody LoginRequest loginRequest) {
+        return authService.login(loginRequest.getEmail(), loginRequest.getPassword());
     }
 }
