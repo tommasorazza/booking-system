@@ -20,9 +20,9 @@ import java.util.UUID;
 @Table(
         name = "booking",
         uniqueConstraints = {@UniqueConstraint(columnNames = {"userId", "eventId"})},
-        indexes = { @Index(name = "user_index", columnList = "userId"),
-                @Index(name = "event_index", columnList = "eventId"),
-                @Index(name = "tenant_index", columnList = "tenantId")}
+        indexes = { @Index(name = "booking_user_index", columnList = "userId"),
+                @Index(name = "booking_event_index", columnList = "eventId"),
+                @Index(name = "booking_tenant_index", columnList = "tenantId")}
 )
 public class Booking {
 

@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 
 /**
  * Configures application security using Spring Security.
@@ -48,7 +49,10 @@ public class SecurityConfig {
         http
                 // Disable CSRF because the API uses JWT-based stateless authentication
                 .csrf(AbstractHttpConfigurer::disable)
-
+                // Make all the http requests stateless
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 // Define authorization rules for incoming requests
                 .authorizeHttpRequests(auth -> auth
                         // Allow unauthenticated access to authentication endpoints

@@ -52,35 +52,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Read the Authorization header
+        String path = request.getServletPath();
+
+        if (path.startsWith("/auth")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String authHeader = request.getHeader("Authorization");
 
-        // If header is missing or doesn't start with "Bearer", continue the chain
+        // If header is missing or doesn't start with "Bearer", continue
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extract the token by removing "Bearer " prefix
-        String token = authHeader.substring(7);
+        try {
+            // Extract token
+            String token = authHeader.substring(7);
 
-        // Extract email (user identity) from the JWT
-        String email = jwtService.extractEmail(token);
+            // Extract email
+            String email = jwtService.extractEmail(token);
 
-        // If token is valid, create an Authentication object
-        if (email != null) {
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            email,                  // principal (user identity)
-                            null,                   // credentials (not needed)
-                            Collections.emptyList() // authorities (roles)
-                    );
+            // If valid, set authentication
+            if (email != null) {
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                email,
+                                null,
+                                Collections.emptyList()
+                        );
 
-            // Store authentication in Spring Security context
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+
+        } catch (Exception e) {
+            filterChain.doFilter(request, response);
+            return;
         }
 
-        // Continue the filter chain
+        // Continue filter chain
         filterChain.doFilter(request, response);
     }
 }

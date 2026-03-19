@@ -15,7 +15,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @Table(
-        name = "user",
+        name = "app_user",
         uniqueConstraints = {@UniqueConstraint(columnNames = {"email"})},
         indexes = {@Index(name = "user_index", columnList = "tenantId")}
 )

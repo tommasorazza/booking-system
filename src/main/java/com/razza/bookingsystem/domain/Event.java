@@ -17,7 +17,7 @@ import java.util.UUID;
 @Builder
 @Table(
         name = "event",
-        indexes = {@Index(name = "user_index", columnList = "tenantId")}
+        indexes = {@Index(name = "event_user_index", columnList = "tenantId")}
 )
 public class Event {
 
