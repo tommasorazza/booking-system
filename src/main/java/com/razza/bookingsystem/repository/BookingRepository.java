@@ -17,6 +17,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * Finds a booking by a specific user for a specific event.
      * Enforces the rule that a user can book a given event only once.
      *
+     *
      * @param userId the ID of the user
      * @param eventId the ID of the event
      * @return an Optional containing the booking if found, or empty otherwise
