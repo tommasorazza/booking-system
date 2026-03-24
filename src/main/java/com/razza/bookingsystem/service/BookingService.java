@@ -6,7 +6,9 @@ import com.razza.bookingsystem.dto.BookingDto;
 import com.razza.bookingsystem.mapper.BookingMapper;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,10 +82,12 @@ public class BookingService {
      *                          or if the booking is already cancelled
      */
     @Transactional
-    public void cancelBooking(UUID bookingId) {
+    public void cancelBooking(UUID bookingId, UUID currentUserId, boolean isAdmin) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
-
+        if (!isAdmin && !booking.getUserId().equals(currentUserId)) {
+            throw new EntityNotFoundException("Access denied");
+        }
         if (booking.getStatus() == com.razza.bookingsystem.domain.Status.CANCELLED) {
             throw new RuntimeException("Booking already cancelled");
         }
@@ -104,7 +108,10 @@ public class BookingService {
      * @param userId the UUID of the user
      * @return list of BookingDto objects
      */
-    public List<BookingDto> getUserBookings(UUID userId) {
+    public List<BookingDto> getUserBookings(UUID userId, UUID currentUserId, boolean isAdmin) {
+        if (!isAdmin && !userId.equals(currentUserId)) {
+            throw new AccessDeniedException("Access denied");
+        }
         return bookingRepository.findByUserId(userId)
                 .stream()
                 .map(bookingMapper::toDto) // mapper now fills eventId + eventName

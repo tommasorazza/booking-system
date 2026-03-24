@@ -1,5 +1,7 @@
 package com.razza.bookingsystem.security;
 
+import com.razza.bookingsystem.security.JwtService;
+import com.razza.bookingsystem.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -7,91 +9,62 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 
-/**
- * Filter that intercepts every HTTP request to perform JWT-based authentication.
- *
- * This filter extracts the JWT token from the "Authorization" header,
- * validates it, and, if valid, populates the Spring Security context
- * with the authenticated user's information.
- *
- * It runs once per request because it extends
- * {@link OncePerRequestFilter}.
- */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    /**
-     * Service responsible for generating and validating JWT tokens.
-     */
     private final JwtService jwtService;
+    private final CustomUserDetailsService userDetailsService;
 
-    /**
-     * Intercepts the HTTP request, extracts and validates the JWT token if present,
-     * and sets the authentication in the security context.
-     *
-     * If no token is present, the request proceeds without authentication.
-     * After authentication (or if no token is found), the filter passes control
-     * to the next filter in the chain.
-     *
-     * @param request     the incoming HTTP request
-     * @param response    the HTTP response
-     * @param filterChain the filter chain for continuing request processing
-     * @throws ServletException if an internal servlet error occurs
-     * @throws IOException      if an I/O error occurs during request processing
-     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getServletPath();
+        final String authHeader = request.getHeader("Authorization");
+        final String jwt;
+        final String email;
 
-        if (path.startsWith("/auth")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String authHeader = request.getHeader("Authorization");
-
-        // If header is missing or doesn't start with "Bearer", continue
+        // 1. Check header
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        try {
-            // Extract token
-            String token = authHeader.substring(7);
+        // 2. Extract token
+        jwt = authHeader.substring(7);
+        email = jwtService.extractEmail(jwt);
 
-            // Extract email
-            String email = jwtService.extractEmail(token);
+        // 3. If user not already authenticated
+        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-            // If valid, set authentication
-            if (email != null) {
-                UsernamePasswordAuthenticationToken authentication =
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+            // 4. Validate token (you should have this method)
+            if (jwtService.isTokenValid(jwt, userDetails)) {
+
+                UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
-                                email,
+                                userDetails,
                                 null,
-                                Collections.emptyList()
+                                userDetails.getAuthorities()
                         );
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-        } catch (Exception e) {
-            filterChain.doFilter(request, response);
-            return;
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
         }
 
-        // Continue filter chain
+        // 5. Continue filter chain
         filterChain.doFilter(request, response);
     }
 }

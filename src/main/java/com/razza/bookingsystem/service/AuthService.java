@@ -6,6 +6,7 @@ import com.razza.bookingsystem.mapper.UserMapper;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,8 @@ public class AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder; // for hashing passwords
     private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
+    private final CustomUserDetailsService userDetailsService;
 
     /**
      * Registers a new user with a default role.
@@ -53,13 +56,14 @@ public class AuthService {
 
     public String login(String email, String password) {
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+        authenticationManager.authenticate(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        email,
+                        password
+                )
+        );
+        var userDetails = userDetailsService.loadUserByUsername(email);
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid email or password");
-        }
-
-        return jwtService.generateToken(user.getEmail());
+        return jwtService.generateToken(userDetails.getUsername());
     }
 }
