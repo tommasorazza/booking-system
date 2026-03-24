@@ -19,6 +19,12 @@ public class BookingDto {
     /** Unique identifier for the booking. */
     private UUID id;
 
+    /** unique identifier of event booked */
+    private UUID eventId;
+
+    /** event name */
+    private String eventName;
+
     /** ID of the user who made the booking. */
     private UUID userId;
 

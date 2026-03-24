@@ -19,9 +19,9 @@ import java.util.UUID;
 @Builder
 @Table(
         name = "booking",
-        uniqueConstraints = {@UniqueConstraint(columnNames = {"userId", "eventId"})},
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"userId", "event_id"})},
         indexes = { @Index(name = "booking_user_index", columnList = "userId"),
-                @Index(name = "booking_event_index", columnList = "eventId"),
+                @Index(name = "booking_event_index", columnList = "event_id"),
                 @Index(name = "booking_tenant_index", columnList = "tenantId")}
 )
 public class Booking {
@@ -34,8 +34,10 @@ public class Booking {
     /** ID of the user who made the booking. */
     private UUID userId;
 
-    /** ID of the event that is being booked. */
-    private UUID eventId;
+    /** event that is being booked. */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "event_id", nullable = false)
+    private Event event;
 
     /** ID of the tenant the booking belongs to. */
     private UUID tenantId;

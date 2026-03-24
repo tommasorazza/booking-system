@@ -32,8 +32,8 @@ public class BookingService {
      * Reduces the available capacity of the event and ensures
      * the user does not already have a booking for the same event.
      *
-     * @param userId the UUID of the user making the booking
      * @param eventId the UUID of the event to book
+     * @param userId the UUID of the user making the booking
      * @param quantity the number of seats to book
      * @return the confirmed BookingDto
      * @throws RuntimeException if the event is not found,
@@ -41,7 +41,7 @@ public class BookingService {
      *                          or if the user already has a booking
      */
     @Transactional
-    public BookingDto createBooking(UUID userId, UUID eventId, int quantity) {
+    public BookingDto createBooking(UUID eventId, UUID userId, int quantity) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
 
@@ -49,17 +49,19 @@ public class BookingService {
             throw new RuntimeException("Not enough seats available");
         }
 
-        if (bookingRepository.findByUserIdAndEventId(userId, eventId).isPresent()) {
+        // Check if user already booked this event
+        if (bookingRepository.findByUserIdAndEvent(userId, event).isPresent()) {
             throw new RuntimeException("User already has a booking for this event");
         }
 
+        // Reduce available capacity
         event.setAvailableCapacity(event.getAvailableCapacity() - quantity);
         eventRepository.save(event);
 
         Booking booking = Booking.builder()
                 .id(UUID.randomUUID())
                 .userId(userId)
-                .eventId(eventId)
+                .event(event) // now using ManyToOne
                 .quantity(quantity)
                 .status(com.razza.bookingsystem.domain.Status.CONFIRMED)
                 .createdAt(LocalDateTime.now())
@@ -86,8 +88,8 @@ public class BookingService {
             throw new RuntimeException("Booking already cancelled");
         }
 
-        Event event = eventRepository.findById(booking.getEventId())
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+        // Access the event via the relationship
+        Event event = booking.getEvent();
 
         event.setAvailableCapacity(event.getAvailableCapacity() + booking.getQuantity());
         eventRepository.save(event);
@@ -105,7 +107,7 @@ public class BookingService {
     public List<BookingDto> getUserBookings(UUID userId) {
         return bookingRepository.findByUserId(userId)
                 .stream()
-                .map(bookingMapper::toDto)
+                .map(bookingMapper::toDto) // mapper now fills eventId + eventName
                 .toList();
     }
 }

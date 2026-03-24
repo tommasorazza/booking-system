@@ -1,6 +1,7 @@
 package com.razza.bookingsystem.repository;
 
 import com.razza.bookingsystem.domain.Booking;
+import com.razza.bookingsystem.domain.Event;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;
@@ -22,9 +23,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * @param eventId the ID of the event
      * @return an Optional containing the booking if found, or empty otherwise
      */
-    Optional<Booking> findByUserIdAndEventId(UUID userId, UUID eventId);
-
-    /**
+    Optional<Booking> findByUserIdAndEvent(UUID userId, Event event);    /**
      * Retrieves all bookings made by a specific user.
      *
      * @param userId the UUID of the user
