@@ -35,7 +35,7 @@ public class DataInitializer {
     /**
      * Creates a {@link CommandLineRunner} that seeds initial data into the database.
      *
-     * This runner executes automatically after the Spring context is initialized.
+     * This runner executes automatically after the Spr52d5ef65-2944-4e23-a81d-0c3a6d9096a7ing context is initialized.
      * It creates:
          Two tenants (Tenant A and Tenant B)
      *   Three users (Alice, Bob, Admin) with passwords encoded via {@link PasswordEncoder}
@@ -62,19 +62,19 @@ public class DataInitializer {
             alice.setEmail("alice@example.com");
             alice.setPassword(passwordEncoder.encode("password"));
             alice.setRole(Role.USER);
-            alice.setTenantId(tenantA.getId());
+            alice.setTenant(tenantA);
 
             User bob = new User();
             bob.setEmail("bob@example.com");
             bob.setPassword(passwordEncoder.encode("password"));
             bob.setRole(Role.USER);
-            bob.setTenantId(tenantB.getId());
+            bob.setTenant(tenantB);
 
             User admin = new User();
             admin.setEmail("admin@example.com");
             admin.setPassword(passwordEncoder.encode("admin_pass"));
             admin.setRole(Role.ADMIN);
-            admin.setTenantId(tenantA.getId());
+            admin.setTenant(tenantA);
 
             userRepository.save(alice);
             userRepository.save(bob);
@@ -86,8 +86,9 @@ public class DataInitializer {
                     .location("Room 101")
                     .date(LocalDateTime.now().plusDays(1))
                     .totalCapacity(30)
-                    .availableCapacity(30)
-                    .tenantId(tenantA.getId())
+                    .availableCapacity(28)
+                    .tenant(tenantA)
+                    .status(Status.CONFIRMED)
                     .build();
 
             Event event2 = Event.builder()
@@ -96,8 +97,9 @@ public class DataInitializer {
                     .location("Room 202")
                     .date(LocalDateTime.now().plusDays(2))
                     .totalCapacity(25)
-                    .availableCapacity(25)
-                    .tenantId(tenantB.getId())
+                    .availableCapacity(24)
+                    .tenant(tenantB)
+                    .status(Status.CONFIRMED)
                     .build();
 
             eventRepository.save(event1);
@@ -106,7 +108,7 @@ public class DataInitializer {
             Booking booking1 = Booking.builder()
                     .userId(alice.getId())
                     .event(event1)
-                    .tenantId(tenantA.getId())
+                    .tenant(tenantA)
                     .quantity(2)
                     .status(Status.CONFIRMED)
                     .createdAt(LocalDateTime.now())
@@ -115,7 +117,7 @@ public class DataInitializer {
             Booking booking2 = Booking.builder()
                     .userId(bob.getId())
                     .event(event2)
-                    .tenantId(tenantB.getId())
+                    .tenant(tenantB)
                     .quantity(1)
                     .status(Status.CONFIRMED)
                     .createdAt(LocalDateTime.now())

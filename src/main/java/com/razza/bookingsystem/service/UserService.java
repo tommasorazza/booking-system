@@ -1,6 +1,7 @@
 package com.razza.bookingsystem.service;
 
 import com.razza.bookingsystem.domain.Role;
+import com.razza.bookingsystem.domain.Tenant;
 import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.UserDto;
 import com.razza.bookingsystem.mapper.UserMapper;
@@ -31,11 +32,11 @@ public class UserService {
      * @param email the user's email (must be unique)
      * @param rawPassword the user's raw password (will be encoded)
      * @param role the role assigned to the user
-     * @param tenantId the tenant ID to which the user belongs
+     * @param tenant the tenant to which the user belongs
      * @return the saved user as a DTO
      * @throws RuntimeException if the email is already in use
      */
-    public UserDto createUser(String email, String rawPassword, Role role, UUID tenantId) {
+    public UserDto createUser(String email, String rawPassword, Role role, Tenant tenant) {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new RuntimeException("Email already in use");
         }
@@ -45,7 +46,7 @@ public class UserService {
                 .email(email)
                 .password(passwordEncoder.encode(rawPassword))
                 .role(role)
-                .tenantId(tenantId)
+                .tenant(tenant)
                 .build();
 
         User saved = userRepository.save(user);

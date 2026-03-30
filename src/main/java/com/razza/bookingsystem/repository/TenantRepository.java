@@ -3,6 +3,7 @@ package com.razza.bookingsystem.repository;
 import com.razza.bookingsystem.domain.Tenant;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -11,4 +12,5 @@ import java.util.UUID;
  */
 public interface TenantRepository extends JpaRepository<Tenant, UUID> {
 
+    Optional<Tenant> findByName(String tenantName);
 }

@@ -39,8 +39,9 @@ public class Booking {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
-    /** ID of the tenant the booking belongs to. */
-    private UUID tenantId;
+    @ManyToOne
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
 
     /** Number of tickets booked. */
     private int quantity;

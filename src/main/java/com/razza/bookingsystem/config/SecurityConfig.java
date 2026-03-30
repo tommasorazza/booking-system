@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +27,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
  * Spring Security authentication context.</p>
  */
 @Configuration
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -36,7 +38,6 @@ public class SecurityConfig {
 
     /**
      * Defines the security filter chain used by Spring Security.
-     * <p>
      * Configuration includes:
      * Disabling CSRF protection since the API uses stateless JWT authentication.
      * Allowing public access to authentication endpoints.

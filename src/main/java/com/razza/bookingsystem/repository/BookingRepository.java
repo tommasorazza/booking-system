@@ -2,8 +2,11 @@ package com.razza.bookingsystem.repository;
 
 import com.razza.bookingsystem.domain.Booking;
 import com.razza.bookingsystem.domain.Event;
+import com.razza.bookingsystem.domain.Status;
+import com.razza.bookingsystem.domain.Tenant;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.Optional;
 import java.util.List;
@@ -29,5 +32,20 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * @param userId the UUID of the user
      * @return list of bookings belonging to the user
      */
-    List<Booking> findByUserId(UUID userId);
+
+    List<Booking> findByUserIdAndTenantId(UUID userId, UUID tenantId);
+
+    Optional<Booking> findByIdAndTenantId(UUID id, UUID tenantId);
+
+    boolean existsByEventIdAndStatus(UUID eventId, Status status);
+
+    List<Booking> findAllByTenantId(UUID tenantId);
+
+    UUID tenantId(UUID tenantId);
+
+    void deleteByEventId(UUID id);
+
+    Optional<Booking> findByIdAndTenant(UUID bookingId, Tenant tenant);
+
+    Collection<Booking> findByUserIdAndTenant(UUID userId, Tenant tenant);
 }

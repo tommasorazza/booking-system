@@ -26,7 +26,7 @@ public class AuthController {
      */
     @PostMapping("/signup")
     public UserDto signup(@RequestBody SignupRequest signupRequest) {
-        return authService.signup(signupRequest.getEmail(), signupRequest.getPassword());
+        return authService.signup(signupRequest.getEmail(), signupRequest.getPassword(), signupRequest.getTenantName());
     }
 
     /**

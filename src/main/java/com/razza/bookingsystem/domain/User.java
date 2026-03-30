@@ -16,8 +16,8 @@ import java.util.UUID;
 @Builder
 @Table(
         name = "app_user",
-        uniqueConstraints = {@UniqueConstraint(columnNames = {"email"})},
-        indexes = {@Index(name = "user_index", columnList = "tenantId")}
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"email", "tenant_id"})},
+        indexes = {@Index(name = "user_index", columnList = "tenant_id")}
 )
 public class User {
 
@@ -36,6 +36,8 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    /** ID of the tenant this user belongs to. */
-    private UUID tenantId;
+    /** Tenant the user belongs to */
+    @ManyToOne
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
 }

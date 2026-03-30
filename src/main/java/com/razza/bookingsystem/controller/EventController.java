@@ -1,11 +1,16 @@
 package com.razza.bookingsystem.controller;
 
+import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.EventDto;
+import com.razza.bookingsystem.security.CustomUserDetails;
 import com.razza.bookingsystem.service.EventService;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.converters.PageableOpenAPIConverter;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,10 +35,14 @@ public class EventController {
      * @param dto the event details
      * @return the created EventDto
      */
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public EventDto createEvent(@RequestBody EventDto dto) {
-        return eventService.createEvent(dto);
-    }
+    public EventDto createEvent(@RequestBody EventDto dto, @AuthenticationPrincipal CustomUserDetails user) {
+        return eventService.createEvent(
+                dto,
+                user.getTenant(),
+                true // since PreAuthorize already guarantees admin
+        );    }
 
     /**
      * Returns a list of all events.
@@ -41,8 +50,10 @@ public class EventController {
      * @return list of EventDto
      */
     @GetMapping
-    public Page<EventDto> getAllEvents(Pageable pageable) {
-        return eventService.getAllEvents(pageable);
+    public Page<EventDto> getAllEvents(Pageable pageable,
+                                       @AuthenticationPrincipal CustomUserDetails user) {
+
+        return eventService.getAllEvents(pageable, user.getTenant());
     }
 
     /**
@@ -52,10 +63,11 @@ public class EventController {
      * @return the EventDto
      */
     @GetMapping("/{id}")
-    public EventDto getEventById(@PathVariable UUID id) {
-        return eventService.getEventById(id);
-    }
+    public EventDto getEventById(@PathVariable UUID id,
+                                 @AuthenticationPrincipal CustomUserDetails user) {
 
+        return eventService.getEventById(id, user.getTenant());
+    }
     /**
      * Updates an existing event.
      *
@@ -64,9 +76,17 @@ public class EventController {
      * @return the updated EventDto
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public EventDto updateEvent(@PathVariable UUID id,
-                                @RequestBody EventDto dto) {
-        return eventService.updateEvent(id, dto);
+                                @RequestBody EventDto dto,
+                                @AuthenticationPrincipal CustomUserDetails user) {
+
+        return eventService.updateEvent(
+                id,
+                dto,
+                user.getTenant(),
+                true
+        );
     }
 
     /**
@@ -75,7 +95,15 @@ public class EventController {
      * @param id the event UUID
      */
     @DeleteMapping("/{id}")
-    public void deleteEvent(@PathVariable UUID id) {
-        eventService.deleteEvent(id);
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteEvent(@PathVariable UUID id,
+                            @AuthenticationPrincipal CustomUserDetails user) {
+
+        eventService.deleteEvent(
+                id,
+                user.getTenant(),
+                true
+        );
     }
+
 }

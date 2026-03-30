@@ -48,6 +48,12 @@ public class Event {
     @Version
     private Long version;
 
-    /** ID of the tenant that owns this event. */
-    private UUID tenantId;
+    /** Tenant the event belongs to */
+    @ManyToOne
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
+
+    /** Status of the event (CONFIRMED/CANCELLED) */
+    @Enumerated(EnumType.STRING)
+    private Status status;
 }

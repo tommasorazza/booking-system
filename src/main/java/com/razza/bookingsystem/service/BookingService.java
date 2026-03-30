@@ -2,10 +2,12 @@ package com.razza.bookingsystem.service;
 
 import com.razza.bookingsystem.domain.Booking;
 import com.razza.bookingsystem.domain.Event;
+import com.razza.bookingsystem.domain.Tenant;
 import com.razza.bookingsystem.dto.BookingDto;
 import com.razza.bookingsystem.mapper.BookingMapper;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
+import com.razza.bookingsystem.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -28,6 +30,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final EventRepository eventRepository;
     private final BookingMapper bookingMapper;
+    private final UserRepository userRepository;
 
     /**
      * Creates a new booking for a user for a given event.
@@ -43,9 +46,14 @@ public class BookingService {
      *                          or if the user already has a booking
      */
     @Transactional
-    public BookingDto createBooking(UUID eventId, UUID userId, int quantity) {
+    public BookingDto createBooking(UUID eventId, UUID userId, Tenant tenant, int quantity) {
+
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        if (!event.getTenant().getId().equals(tenant.getId())) {
+            throw new RuntimeException("Cross-tenant booking not allowed");
+        }
 
         if (event.getAvailableCapacity() < quantity) {
             throw new RuntimeException("Not enough seats available");
@@ -64,6 +72,7 @@ public class BookingService {
                 .id(UUID.randomUUID())
                 .userId(userId)
                 .event(event) // now using ManyToOne
+                .tenant(event.getTenant())
                 .quantity(quantity)
                 .status(com.razza.bookingsystem.domain.Status.CONFIRMED)
                 .createdAt(LocalDateTime.now())
@@ -82,11 +91,14 @@ public class BookingService {
      *                          or if the booking is already cancelled
      */
     @Transactional
-    public void cancelBooking(UUID bookingId, UUID currentUserId, boolean isAdmin) {
-        Booking booking = bookingRepository.findById(bookingId)
+    public void cancelBooking(UUID bookingId, UUID currentUserId,Tenant tenant, boolean isAdmin) {
+        Booking booking = bookingRepository.findByIdAndTenant(bookingId, tenant)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
         if (!isAdmin && !booking.getUserId().equals(currentUserId)) {
             throw new EntityNotFoundException("Access denied");
+        }
+        if (!booking.getTenant().equals(tenant)) {
+            throw new RuntimeException("Cross-tenant access denied");
         }
         if (booking.getStatus() == com.razza.bookingsystem.domain.Status.CANCELLED) {
             throw new RuntimeException("Booking already cancelled");
@@ -108,11 +120,11 @@ public class BookingService {
      * @param userId the UUID of the user
      * @return list of BookingDto objects
      */
-    public List<BookingDto> getUserBookings(UUID userId, UUID currentUserId, boolean isAdmin) {
+    public List<BookingDto> getUserBookings(UUID userId, UUID currentUserId, Tenant tenant, boolean isAdmin) {
         if (!isAdmin && !userId.equals(currentUserId)) {
             throw new AccessDeniedException("Access denied");
         }
-        return bookingRepository.findByUserId(userId)
+        return bookingRepository.findByUserIdAndTenant(userId, tenant)
                 .stream()
                 .map(bookingMapper::toDto) // mapper now fills eventId + eventName
                 .toList();

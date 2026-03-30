@@ -5,39 +5,52 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
 
 /**
- * Service for generating and validating JSON Web Tokens (JWT) for authentication.
+ * Service responsible for handling JWT operations such as:
+ * - token generation
+ * - extracting claims (email, roles)
+ * - validating tokens
  *
- * Uses the secret and expiration configured in {@link JwtConfig} to sign
- * and validate tokens.
- *
- * Provides methods to:
- * - Generate a JWT token for a given user email.
- * - Extract the email (subject) from a JWT token.
+ * This implementation uses HMAC SHA-256 for signing tokens.
  */
 @Service
 @RequiredArgsConstructor
 public class JwtService {
 
-    /** Configuration containing the JWT secret key and expiration time */
+    /**
+     * Configuration containing JWT secret and expiration settings.
+     */
     private final JwtConfig jwtConfig;
 
     /**
-     * Generates a signed JWT token for the given email.
+     * Generates a JWT token for the given user.
      *
-     * @param email the user's email to include as the subject in the token
-     * @return a signed JWT token string
+     * The token contains:
+     * - subject: user's email
+     * - roles: list of roles without the ROLE_ prefix
+     * - issued at timestamp
+     * - expiration timestamp
+     *
+     * @param userDetails authenticated user details
+     * @return signed JWT token
      */
-    public String generateToken(String email) {
+    public String generateToken(UserDetails userDetails) {
         Key key = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes());
 
+        List<String> roles = userDetails.getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .toList();
+
         return Jwts.builder()
-                .setSubject(email)
+                .setSubject(userDetails.getUsername())
+                .claim("roles", roles)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtConfig.getExpiration()))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -45,15 +58,13 @@ public class JwtService {
     }
 
     /**
-     * Extracts the email (subject) from the given JWT token.
+     * Extracts the email (subject) from the JWT token.
      *
-     * @param token the JWT token string
-     * @return the email contained in the token's subject claim
-     * @throws io.jsonwebtoken.JwtException if the token is invalid or expired
+     * @param token JWT token
+     * @return email stored in the token
      */
     public String extractEmail(String token) {
         Key key = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes());
-
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
@@ -62,18 +73,57 @@ public class JwtService {
                 .getSubject();
     }
 
-    public boolean isTokenValid(String token, org.springframework.security.core.userdetails.UserDetails userDetails) {
+    /**
+     * Extracts roles from the JWT token.
+     *
+     * Roles are stored as plain strings without the ROLE_ prefix.
+     *
+     * @param token JWT token
+     * @return list of roles
+     */
+    public List<String> extractRoles(String token) {
+        Key key = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes());
+
+        Object roles = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .get("roles");
+
+        return ((List<?>) roles).stream()
+                .map(Object::toString)
+                .toList();
+    }
+
+    /**
+     * Validates the JWT token against the provided user details.
+     *
+     * A token is considered valid if:
+     * - the email matches the user
+     * - the token is not expired
+     *
+     * @param token JWT token
+     * @param userDetails user details to validate against
+     * @return true if valid, false otherwise
+     */
+    public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
             final String email = extractEmail(token);
-            return (email.equals(userDetails.getUsername()) && !isTokenExpired(token));
+            return email.equals(userDetails.getUsername()) && !isTokenExpired(token);
         } catch (Exception e) {
             return false;
         }
     }
 
+    /**
+     * Checks whether the JWT token is expired.
+     *
+     * @param token JWT token
+     * @return true if the token is expired, false otherwise
+     */
     private boolean isTokenExpired(String token) {
         Key key = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes());
-
         Date expiration = Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
