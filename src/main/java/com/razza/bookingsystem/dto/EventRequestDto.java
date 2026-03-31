@@ -6,17 +6,14 @@ import java.time.LocalDateTime;
 
 /**
  * Data Transfer Object representing an event.
- * Used to transfer event details between layers.
+ * Used for creating or updating events.
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EventDto {
-
-    /** Unique identifier for the event. */
-    private UUID id;
+public class EventRequestDto {
 
     /** Name/title of the event. */
     private String name;
@@ -33,6 +30,4 @@ public class EventDto {
     /** Total number of tickets available for the event. */
     private int totalCapacity;
 
-    /** Number of tickets still available for booking. */
-    private int availableCapacity;
 }

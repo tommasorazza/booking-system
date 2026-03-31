@@ -14,10 +14,18 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     /**
      * Finds a user by their email address.
-     * Useful for authentication or login operations.
      *
      * @param email the email of the user
      * @return an Optional containing the user if found, or empty otherwise
      */
     Optional<User> findByEmail(String email);
+
+    /**
+     * Finds a user by their id and tenantId.
+     *
+     * @param id the ID of the user
+     * @Param tenantId the ID of the user
+     * @return an Optional containing the user if found, or empty otherwise
+     */
+    Optional<User> findByIdAndTenantId(UUID id, UUID tenantId);
 }

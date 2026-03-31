@@ -1,5 +1,6 @@
 package com.razza.bookingsystem.service;
 
+import com.razza.bookingsystem.domain.Role;
 import com.razza.bookingsystem.domain.Tenant;
 import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.UserDto;
@@ -19,12 +20,12 @@ import java.util.UUID;
  * Service responsible for authentication-related operations.
  *
  * Handles:
- * - user registration (signup)
- * - user authentication (login)
+ * - user registration
+ * - user authentication
  * - tenant resolution and creation
  *
- * Passwords are securely hashed before being stored.
- * JWT tokens are generated upon successful login.
+ * Passwords are hashed before being stored.
+ * JWT tokens are generated upon successful authentication.
  */
 @Service
 @RequiredArgsConstructor
@@ -71,14 +72,14 @@ public class AuthService {
      * Behavior:
      * - checks if the email is already in use
      * - finds or creates a tenant with the given name
-     * - hashes the user's password
-     * - assigns a default USER role
+     * - hashes the password
+     * - assigns the USER role
      * - persists the user
      *
-     * @param email the user's email, must be unique
-     * @param password the user's raw password
-     * @param tenantName the name of the tenant to associate with the user
-     * @return the created user as a DTO
+     * @param email unique email of the user
+     * @param password raw password of the user
+     * @param tenantName name of the tenant
+     * @return created user as a DTO
      * @throws RuntimeException if the email is already in use
      */
     public UserDto signup(String email, String password, String tenantName) {
@@ -102,7 +103,6 @@ public class AuthService {
         }
 
         User user = User.builder()
-                .id(UUID.randomUUID())
                 .email(email)
                 .password(passwordEncoder.encode(password))
                 .role(com.razza.bookingsystem.domain.Role.USER)
@@ -117,13 +117,13 @@ public class AuthService {
      * Authenticates a user and generates a JWT token.
      *
      * Behavior:
-     * - validates credentials using AuthenticationManager
+     * - validates credentials using the authentication manager
      * - loads user details
      * - generates a signed JWT token
      *
-     * @param email the user's email
-     * @param password the user's raw password
-     * @return a JWT token if authentication is successful
+     * @param email user email
+     * @param password raw password
+     * @return JWT token if authentication succeeds
      * @throws org.springframework.security.core.AuthenticationException if credentials are invalid
      */
     public String login(String email, String password) {
@@ -138,5 +138,29 @@ public class AuthService {
         var userDetails = userDetailsService.loadUserByUsername(email);
 
         return jwtService.generateToken(userDetails);
+    }
+
+    /**
+     * Promotes an existing user to ADMIN within a specific tenant.
+     *
+     * Behavior:
+     * - retrieves the user scoped to the given tenant
+     * - updates the role to ADMIN
+     * - persists the updated user
+     *
+     * @param userId identifier of the user to promote
+     * @param tenant tenant to which the user belongs
+     * @return updated user as a DTO
+     * @throws RuntimeException if the user is not found in the given tenant
+     */
+    public UserDto makeAdmin(UUID userId, Tenant tenant){
+
+        User user = userRepository.findByIdAndTenantId(userId, tenant.getId())
+                .orElseThrow(() -> new RuntimeException("user not found"));
+
+        user.setRole(Role.ADMIN);
+
+        User saved = userRepository.save(user);
+        return userMapper.toDto(saved);
     }
 }

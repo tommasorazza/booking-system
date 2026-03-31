@@ -3,10 +3,12 @@ package com.razza.bookingsystem.service;
 import com.razza.bookingsystem.domain.Event;
 import com.razza.bookingsystem.domain.Status;
 import com.razza.bookingsystem.domain.Tenant;
-import com.razza.bookingsystem.dto.EventDto;
+import com.razza.bookingsystem.dto.EventResponseDto;
+import com.razza.bookingsystem.dto.EventRequestDto;
 import com.razza.bookingsystem.mapper.EventMapper;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,7 +36,8 @@ public class EventService {
      * @param dto the event data transfer object containing event details
      * @return the persisted event as a DTO
      */
-    public EventDto createEvent(EventDto dto, Tenant tenant, Boolean isAdmin) {
+    @Transactional
+    public EventResponseDto createEvent(EventRequestDto dto, Tenant tenant, Boolean isAdmin) {
         if (!isAdmin) {
             throw new RuntimeException("Only admins can create events");
         }
@@ -42,6 +45,7 @@ public class EventService {
         event.setTenant(tenant);
         event.setVersion(0L);
         event.setStatus(Status.CONFIRMED);
+        event.setAvailableCapacity(event.getTotalCapacity());
         Event saved = eventRepository.save(event);
         return eventMapper.toDto(saved);
     }
@@ -53,7 +57,7 @@ public class EventService {
      * @return the corresponding EventDto
      * @throws RuntimeException if the event cannot be found
      */
-    public EventDto getEventById(UUID id, Tenant tenant) {
+    public EventResponseDto getEventById(UUID id, Tenant tenant) {
         Event event = eventRepository.findByIdAndTenant(id,tenant)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
         return eventMapper.toDto(event);
@@ -67,7 +71,8 @@ public class EventService {
      * @return the updated event as a DTO
      * @throws RuntimeException if the event cannot be found
      */
-    public EventDto updateEvent(UUID id, EventDto dto, Tenant tenant, Boolean isAdmin) {
+    @Transactional
+    public EventResponseDto updateEvent(UUID id, EventRequestDto dto, Tenant tenant, Boolean isAdmin) {
         if (!isAdmin) {
             throw new RuntimeException("Only admins can create events");
         }
@@ -78,7 +83,14 @@ public class EventService {
         event.setDescription(dto.getDescription());
         event.setLocation(dto.getLocation());
         event.setDate(dto.getDate());
-
+        if(event.getTotalCapacity() > dto.getTotalCapacity() && bookingRepository.findByEventId(id).isPresent()){
+            throw new RuntimeException("Can't decrease capacity since bookings already present");
+        } else {
+            int temp = event.getTotalCapacity() - event.getAvailableCapacity();
+            event.setTotalCapacity(dto.getTotalCapacity());
+            event.setAvailableCapacity(dto.getTotalCapacity());
+            event.setAvailableCapacity(dto.getTotalCapacity() - temp);
+        }
         Event updated = eventRepository.save(event);
         return eventMapper.toDto(updated);
     }
@@ -88,6 +100,7 @@ public class EventService {
      *
      * @param id the UUID of the event to delete
      */
+    @Transactional
     public void deleteEvent(UUID id, Tenant tenant,  Boolean isAdmin) {
         if (!isAdmin) {
             throw new RuntimeException("Only admins can create events");
@@ -110,7 +123,7 @@ public class EventService {
      * @param pageable pagination and sorting configuration
      * @return a page of EventDto objects
      */
-    public Page<EventDto> getAllEvents(Pageable pageable, Tenant tenant) {
+    public Page<EventResponseDto> getAllEvents(Pageable pageable, Tenant tenant) {
         return eventRepository.findByTenant(tenant, pageable)
                 .map(eventMapper::toDto);
     }

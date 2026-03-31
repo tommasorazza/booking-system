@@ -43,7 +43,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     UUID tenantId(UUID tenantId);
 
-    void deleteByEventId(UUID id);
+    Optional<Booking> findByEventId(UUID id);
 
     Optional<Booking> findByIdAndTenant(UUID bookingId, Tenant tenant);
 

@@ -36,19 +36,37 @@ public class BookingController {
      * @return the created BookingDto
      */
 
-    @PostMapping("/events/{eventId}/book")
-    @PreAuthorize("hasRole('USER')")
+    @PostMapping("/bookings/{eventId}/book")
     public BookingDto createBooking(@PathVariable UUID eventId,
                                     @RequestParam int quantity,
+                                    @RequestParam(required = false) UUID userId,
                                     Authentication authentication) {
 
         CustomUserDetails user = getUser(authentication);
 
         return bookingService.createBooking(
                 eventId,
+                userId,
                 user.getId(),
                 user.getTenant(),
-                quantity
+                quantity,
+                isAdmin(authentication)
+        );
+    }
+
+    @PutMapping("/bookings/{bookingId}")
+    public BookingDto ModifyQuantity(@PathVariable UUID bookingId,
+                                     @RequestParam int quantity,
+                                     Authentication authentication) {
+
+        CustomUserDetails user = getUser(authentication);
+
+        return bookingService.modifyQuantity(
+                bookingId,
+                user.getId(),
+                user.getTenant(),
+                quantity,
+                isAdmin(authentication)
         );
     }
 
@@ -59,7 +77,6 @@ public class BookingController {
      */
 
     @DeleteMapping("/bookings/{id}")
-    @PreAuthorize("hasRole('USER')")
     public void cancelBooking(@PathVariable UUID id, Authentication authentication) {
         CustomUserDetails user = getUser(authentication);
 
@@ -79,7 +96,6 @@ public class BookingController {
      */
 
     @GetMapping("/users/{userId}/bookings")
-    @PreAuthorize("hasRole('USER')")
     public List<BookingDto> getUserBookings(@PathVariable UUID userId, Authentication authentication) {
         CustomUserDetails user = getUser(authentication);
 
