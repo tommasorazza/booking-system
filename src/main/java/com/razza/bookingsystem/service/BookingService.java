@@ -5,11 +5,11 @@ import com.razza.bookingsystem.domain.Event;
 import com.razza.bookingsystem.domain.Tenant;
 import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.BookingDto;
+import com.razza.bookingsystem.exception.*;
 import com.razza.bookingsystem.mapper.BookingMapper;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
 import com.razza.bookingsystem.repository.UserRepository;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -82,28 +82,30 @@ public class BookingService {
     public BookingDto createBooking(UUID eventId, UUID userId, UUID currentUserId, Tenant tenant, int quantity, Boolean isAdmin) {
 
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId));
 
         if (!event.getTenant().getId().equals(tenant.getId())) {
-            throw new RuntimeException("Cross-tenant booking not allowed");
+            throw new CrossTenantException();
         }
 
         if (event.getAvailableCapacity() < quantity) {
-            throw new RuntimeException("Not enough seats available");
+            throw new NotEnoughSeatsException(event.getAvailableCapacity());
         }
 
         if (isAdmin) {
             currentUserId = userId;
             User user = userRepository.findById(currentUserId)
-                    .orElseThrow(() -> new RuntimeException("user not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("user",  userId));
 
             if (!user.getTenant().getId().equals(tenant.getId())) {
-                throw new RuntimeException("the user is unknown within this tenant");
+                throw new CrossTenantException();
             }
         }
 
-        if (bookingRepository.findByUserIdAndEvent(currentUserId, event).isPresent()) {
-            throw new RuntimeException("User already has a booking for this event");
+        var existingBooking = bookingRepository.findByUserIdAndEvent(currentUserId, event);
+
+        if (existingBooking.isPresent()) {
+            throw new BookingAlreadyPresentException(existingBooking.get().getQuantity());
         }
 
         event.setAvailableCapacity(event.getAvailableCapacity() - quantity);
@@ -147,18 +149,18 @@ public class BookingService {
     public BookingDto modifyQuantity(UUID bookingId, UUID userId, Tenant userTenant, int quantity, Boolean isAdmin) {
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId));
 
         if (!isAdmin && !userId.equals(booking.getUserId())) {
-            throw new RuntimeException("Not allowed to modify this booking");
+            throw new AccessDeniedException("Not allowed to modify this booking");
         }
 
         if (!booking.getEvent().getTenant().getId().equals(userTenant.getId())) {
-            throw new RuntimeException("Cross-tenant booking modification not allowed");
+            throw new CrossTenantException();
         }
 
         if (booking.getEvent().getAvailableCapacity() < quantity - booking.getQuantity()) {
-            throw new RuntimeException("Not enough seats available");
+            throw new NotEnoughSeatsException(booking.getEvent().getAvailableCapacity());
         }
 
         booking.getEvent().setAvailableCapacity(
@@ -195,18 +197,18 @@ public class BookingService {
     public void cancelBooking(UUID bookingId, UUID currentUserId, Tenant tenant, boolean isAdmin) {
 
         Booking booking = bookingRepository.findByIdAndTenant(bookingId, tenant)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId));
 
         if (!isAdmin && !booking.getUserId().equals(currentUserId)) {
-            throw new EntityNotFoundException("Access denied");
+            throw new AccessDeniedException("Access denied");
         }
 
         if (!booking.getTenant().getId().equals(tenant.getId())) {
-            throw new RuntimeException("Cross-tenant access denied");
+            throw new CrossTenantException();
         }
 
         if (booking.getStatus() == com.razza.bookingsystem.domain.Status.CANCELLED) {
-            throw new RuntimeException("Booking already cancelled");
+            throw new BookingAlreadyCancelledException();
         }
 
         Event event = booking.getEvent();
@@ -241,7 +243,7 @@ public class BookingService {
         }
 
         if (bookingRepository.findByUserIdAndTenant(userId, tenant).isEmpty()) {
-            throw new RuntimeException("user not found");
+            throw new ResourceNotFoundException("user", userId);
         }
 
         return bookingRepository.findByUserIdAndTenant(userId, tenant)

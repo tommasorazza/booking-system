@@ -38,8 +38,7 @@ public class EventController {
     public EventResponseDto createEvent(@RequestBody EventRequestDto dto, @AuthenticationPrincipal CustomUserDetails user) {
         return eventService.createEvent(
                 dto,
-                user.getTenant(),
-                true // since PreAuthorize already guarantees admin
+                user.getTenant()
         );    }
 
     /**
@@ -82,8 +81,7 @@ public class EventController {
         return eventService.updateEvent(
                 id,
                 dto,
-                user.getTenant(),
-                true
+                user.getTenant()
         );
     }
 

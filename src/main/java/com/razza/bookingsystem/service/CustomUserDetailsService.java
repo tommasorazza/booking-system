@@ -30,7 +30,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     /**
      * Loads a user by email and maps it to CustomUserDetails.
-     *
+     * <p>
      * Behavior:
      * - looks up the user by email
      * - throws an exception if the user does not exist
@@ -44,7 +44,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("user: " + email + " not found"));
 
         return new CustomUserDetails(
                 user.getId(),

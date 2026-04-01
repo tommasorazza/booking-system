@@ -5,6 +5,9 @@ import com.razza.bookingsystem.domain.Status;
 import com.razza.bookingsystem.domain.Tenant;
 import com.razza.bookingsystem.dto.EventResponseDto;
 import com.razza.bookingsystem.dto.EventRequestDto;
+import com.razza.bookingsystem.exception.EventDecreaseException;
+import com.razza.bookingsystem.exception.EventDeleteException;
+import com.razza.bookingsystem.exception.ResourceNotFoundException;
 import com.razza.bookingsystem.mapper.EventMapper;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
@@ -12,6 +15,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -37,10 +41,7 @@ public class EventService {
      * @return the persisted event as a DTO
      */
     @Transactional
-    public EventResponseDto createEvent(EventRequestDto dto, Tenant tenant, Boolean isAdmin) {
-        if (!isAdmin) {
-            throw new RuntimeException("Only admins can create events");
-        }
+    public EventResponseDto createEvent(EventRequestDto dto, Tenant tenant) {
         Event event = eventMapper.toEntity(dto);
         event.setTenant(tenant);
         event.setVersion(0L);
@@ -59,7 +60,7 @@ public class EventService {
      */
     public EventResponseDto getEventById(UUID id, Tenant tenant) {
         Event event = eventRepository.findByIdAndTenant(id,tenant)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("event", id));
         return eventMapper.toDto(event);
     }
 
@@ -72,24 +73,21 @@ public class EventService {
      * @throws RuntimeException if the event cannot be found
      */
     @Transactional
-    public EventResponseDto updateEvent(UUID id, EventRequestDto dto, Tenant tenant, Boolean isAdmin) {
-        if (!isAdmin) {
-            throw new RuntimeException("Only admins can create events");
-        }
+    public EventResponseDto updateEvent(UUID id, EventRequestDto dto, Tenant tenant) {
         Event event = eventRepository.findByIdAndTenant(id, tenant)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("event",id));
 
         event.setName(dto.getName());
         event.setDescription(dto.getDescription());
         event.setLocation(dto.getLocation());
         event.setDate(dto.getDate());
         if(event.getTotalCapacity() > dto.getTotalCapacity() && bookingRepository.findByEventId(id).isPresent()){
-            throw new RuntimeException("Can't decrease capacity since bookings already present");
+            int activeBookings = bookingRepository.countByEventIdAndStatus(id, Status.CONFIRMED);
+            throw new EventDecreaseException(activeBookings);
         } else {
-            int temp = event.getTotalCapacity() - event.getAvailableCapacity();
+            int bookedSeats = event.getTotalCapacity() - event.getAvailableCapacity();
             event.setTotalCapacity(dto.getTotalCapacity());
-            event.setAvailableCapacity(dto.getTotalCapacity());
-            event.setAvailableCapacity(dto.getTotalCapacity() - temp);
+            event.setAvailableCapacity(dto.getTotalCapacity() - bookedSeats);
         }
         Event updated = eventRepository.save(event);
         return eventMapper.toDto(updated);
@@ -103,15 +101,15 @@ public class EventService {
     @Transactional
     public void deleteEvent(UUID id, Tenant tenant,  Boolean isAdmin) {
         if (!isAdmin) {
-            throw new RuntimeException("Only admins can create events");
+            throw new AccessDeniedException("Access denied");
         }
         Event event = eventRepository.findByIdAndTenant(id, tenant)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
-        boolean hasActiveBookings = bookingRepository
-                .existsByEventIdAndStatus(id, Status.CONFIRMED);
+                .orElseThrow(() -> new ResourceNotFoundException("event", id));
+        int activeBookings = bookingRepository
+                .countByEventIdAndStatus(id, Status.CONFIRMED);
 
-        if (hasActiveBookings) {
-            throw new RuntimeException("Cannot delete event with active bookings");
+        if (activeBookings > 0) {
+            throw new EventDeleteException(activeBookings);
         }
 
         event.setStatus(com.razza.bookingsystem.domain.Status.CANCELLED);

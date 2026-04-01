@@ -4,6 +4,9 @@ import com.razza.bookingsystem.domain.Role;
 import com.razza.bookingsystem.domain.Tenant;
 import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.UserDto;
+import com.razza.bookingsystem.exception.EmailAlreadyExistsException;
+import com.razza.bookingsystem.exception.ResourceNotFoundException;
+import com.razza.bookingsystem.exception.UserAlreadyExistsException;
 import com.razza.bookingsystem.mapper.UserMapper;
 import com.razza.bookingsystem.repository.TenantRepository;
 import com.razza.bookingsystem.repository.UserRepository;
@@ -86,10 +89,6 @@ public class AuthService {
 
         Tenant tenant;
 
-        if (userRepository.findByEmail(email).isPresent()) {
-            throw new RuntimeException("Email already in use");
-        }
-
         Optional<Tenant> tenantOpt = tenantRepository.findByName(tenantName);
 
         if (tenantOpt.isPresent()) {
@@ -100,6 +99,10 @@ public class AuthService {
                     .build();
 
             tenant = tenantRepository.save(tenant);
+        }
+
+        if (userRepository.findByEmailAndTenant(email, tenant).isPresent()) {
+            throw new UserAlreadyExistsException(email);
         }
 
         User user = User.builder()
@@ -156,7 +159,7 @@ public class AuthService {
     public UserDto makeAdmin(UUID userId, Tenant tenant){
 
         User user = userRepository.findByIdAndTenantId(userId, tenant.getId())
-                .orElseThrow(() -> new RuntimeException("user not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("user", userId));
 
         user.setRole(Role.ADMIN);
 
