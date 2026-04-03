@@ -1,6 +1,9 @@
 package com.razza.bookingsystem.service;
 
+import com.razza.bookingsystem.domain.Tenant;
 import com.razza.bookingsystem.domain.User;
+import com.razza.bookingsystem.exception.ResourceNotFoundException;
+import com.razza.bookingsystem.repository.TenantRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -28,9 +31,10 @@ public class CustomUserDetailsService implements UserDetailsService {
      */
     private final UserRepository userRepository;
 
+    private final TenantRepository tenantRepository;
+
     /**
      * Loads a user by email and maps it to CustomUserDetails.
-     * <p>
      * Behavior:
      * - looks up the user by email
      * - throws an exception if the user does not exist
@@ -40,10 +44,13 @@ public class CustomUserDetailsService implements UserDetailsService {
      * @return UserDetails representation of the user
      * @throws UsernameNotFoundException if no user is found with the given email
      */
-    @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-
-        User user = userRepository.findByEmail(email)
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        String[] parts = username.split("\\|");
+        String email = parts[0];
+        String tenantName = parts[1];
+        Tenant tenant = tenantRepository.findByName(tenantName)
+                .orElseThrow(() -> new UsernameNotFoundException("tenant: " + tenantName + " not found"));
+        User user = userRepository.findByEmailAndTenant(email, tenant)
                 .orElseThrow(() -> new UsernameNotFoundException("user: " + email + " not found"));
 
         return new CustomUserDetails(

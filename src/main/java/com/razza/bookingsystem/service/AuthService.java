@@ -4,19 +4,21 @@ import com.razza.bookingsystem.domain.Role;
 import com.razza.bookingsystem.domain.Tenant;
 import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.UserDto;
-import com.razza.bookingsystem.exception.EmailAlreadyExistsException;
 import com.razza.bookingsystem.exception.ResourceNotFoundException;
 import com.razza.bookingsystem.exception.UserAlreadyExistsException;
 import com.razza.bookingsystem.mapper.UserMapper;
 import com.razza.bookingsystem.repository.TenantRepository;
 import com.razza.bookingsystem.repository.UserRepository;
+import com.razza.bookingsystem.security.CustomUserDetails;
 import com.razza.bookingsystem.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -73,33 +75,23 @@ public class AuthService {
      * Registers a new user within a tenant.
      *
      * Behavior:
-     * - checks if the email is already in use
-     * - finds or creates a tenant with the given name
+     * - checks if the email is already in use within the tenant
+     * - retrieves a tenant with the given name
      * - hashes the password
      * - assigns the USER role
      * - persists the user
      *
-     * @param email unique email of the user
+     * @param email unique email of the user within the tenant
      * @param password raw password of the user
      * @param tenantName name of the tenant
      * @return created user as a DTO
-     * @throws RuntimeException if the email is already in use
+     *
+     * @throws UserAlreadyExistsException if a user with the same email already exists in the tenant
      */
     public UserDto signup(String email, String password, String tenantName) {
 
-        Tenant tenant;
-
-        Optional<Tenant> tenantOpt = tenantRepository.findByName(tenantName);
-
-        if (tenantOpt.isPresent()) {
-            tenant = tenantOpt.get();
-        } else {
-            tenant = Tenant.builder()
-                    .name(tenantName)
-                    .build();
-
-            tenant = tenantRepository.save(tenant);
-        }
+        Tenant tenant = tenantRepository.findByName(tenantName)
+                .orElseThrow(() -> new ResourceNotFoundException("tenant"));
 
         if (userRepository.findByEmailAndTenant(email, tenant).isPresent()) {
             throw new UserAlreadyExistsException(email);
@@ -108,7 +100,7 @@ public class AuthService {
         User user = User.builder()
                 .email(email)
                 .password(passwordEncoder.encode(password))
-                .role(com.razza.bookingsystem.domain.Role.USER)
+                .role(Role.USER)
                 .tenant(tenant)
                 .build();
 
@@ -120,25 +112,27 @@ public class AuthService {
      * Authenticates a user and generates a JWT token.
      *
      * Behavior:
+     * - builds a tenant-scoped username (email + tenant)
      * - validates credentials using the authentication manager
-     * - loads user details
+     * - extracts authenticated user details
      * - generates a signed JWT token
      *
      * @param email user email
      * @param password raw password
+     * @param tenantName tenant name used for scoping authentication
      * @return JWT token if authentication succeeds
-     * @throws org.springframework.security.core.AuthenticationException if credentials are invalid
+     *
+     * @throws AuthenticationException if credentials are invalid
      */
-    public String login(String email, String password) {
+    public String login(String email, String password, String tenantName) {
 
-        authenticationManager.authenticate(
-                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                        email,
-                        password
-                )
+        String username = email + "|" + tenantName;
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(username, password)
         );
 
-        var userDetails = userDetailsService.loadUserByUsername(email);
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
         return jwtService.generateToken(userDetails);
     }
@@ -154,9 +148,10 @@ public class AuthService {
      * @param userId identifier of the user to promote
      * @param tenant tenant to which the user belongs
      * @return updated user as a DTO
-     * @throws RuntimeException if the user is not found in the given tenant
+     *
+     * @throws ResourceNotFoundException if the user is not found in the given tenant
      */
-    public UserDto makeAdmin(UUID userId, Tenant tenant){
+    public UserDto makeAdmin(UUID userId, Tenant tenant) {
 
         User user = userRepository.findByIdAndTenantId(userId, tenant.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("user", userId));

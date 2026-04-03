@@ -54,9 +54,13 @@ public class DataInitializer {
             tenantA.setName("Tenant A");
             Tenant tenantB = new Tenant();
             tenantB.setName("Tenant B");
+            Tenant tenantC = new Tenant();
+            tenantC.setName("Tenant C");
+
 
             tenantRepository.save(tenantA);
             tenantRepository.save(tenantB);
+            tenantRepository.save(tenantC);
 
             User alice = new User();
             alice.setEmail("alice@example.com");
@@ -64,25 +68,55 @@ public class DataInitializer {
             alice.setRole(Role.USER);
             alice.setTenant(tenantA);
 
+            User ariana = new User();
+            ariana.setEmail("ariana@example.com");
+            ariana.setPassword(passwordEncoder.encode("password"));
+            ariana.setRole(Role.USER);
+            ariana.setTenant(tenantA);
+
+            User adminA = new User();
+            adminA.setEmail("adminA@example.com");
+            adminA.setPassword(passwordEncoder.encode("adminA_pass"));
+            adminA.setRole(Role.ADMIN);
+            adminA.setTenant(tenantA);
+
+            userRepository.save(alice);
+            userRepository.save(ariana);
+            userRepository.save(adminA);
+
             User bob = new User();
             bob.setEmail("bob@example.com");
             bob.setPassword(passwordEncoder.encode("password"));
             bob.setRole(Role.USER);
             bob.setTenant(tenantB);
 
-            User admin = new User();
-            admin.setEmail("admin@example.com");
-            admin.setPassword(passwordEncoder.encode("admin_pass"));
-            admin.setRole(Role.ADMIN);
-            admin.setTenant(tenantA);
+            User bert = new User();
+            bert.setEmail("bert@example.com");
+            bert.setPassword(passwordEncoder.encode("password"));
+            bert.setRole(Role.USER);
+            bert.setTenant(tenantB);
 
-            userRepository.save(alice);
+            User adminB = new User();
+            adminB.setEmail("adminB@example.com");
+            adminB.setPassword(passwordEncoder.encode("adminB_pass"));
+            adminB.setRole(Role.ADMIN);
+            adminB.setTenant(tenantB);
+
             userRepository.save(bob);
-            userRepository.save(admin);
+            userRepository.save(bert);
+            userRepository.save(adminB);
+
+            User adminC = new User();
+            adminC.setEmail("adminC@example.com");
+            adminC.setPassword(passwordEncoder.encode("adminC_pass"));
+            adminC.setRole(Role.ADMIN);
+            adminC.setTenant(tenantC);
+
+            userRepository.save(adminC);
 
             Event event1 = Event.builder()
-                    .name("Spring Boot Workshop")
-                    .description("Learn Spring Boot basics")
+                    .name("Flowers")
+                    .description("Learn to grow flowers")
                     .location("Room 101")
                     .date(LocalDateTime.now().plusDays(1))
                     .totalCapacity(30)
@@ -92,8 +126,8 @@ public class DataInitializer {
                     .build();
 
             Event event2 = Event.builder()
-                    .name("Docker Deep Dive")
-                    .description("Hands-on Docker session")
+                    .name("Rocks")
+                    .description("Learn different rocks")
                     .location("Room 202")
                     .date(LocalDateTime.now().plusDays(2))
                     .totalCapacity(25)
@@ -102,8 +136,44 @@ public class DataInitializer {
                     .status(Status.CONFIRMED)
                     .build();
 
+            Event event3 = Event.builder()
+                    .name("Origami")
+                    .description("Learn paper origami")
+                    .location("Room 303")
+                    .date(LocalDateTime.now().plusDays(1))
+                    .totalCapacity(15)
+                    .availableCapacity(8)
+                    .tenant(tenantA)
+                    .status(Status.CONFIRMED)
+                    .build();
+
+            Event event4 = Event.builder()
+                    .name("Yoga")
+                    .description("Learn yoga")
+                    .location("Room 404")
+                    .date(LocalDateTime.now().plusDays(2))
+                    .totalCapacity(50)
+                    .availableCapacity(50)
+                    .tenant(tenantC)
+                    .status(Status.CONFIRMED)
+                    .build();
+
+            Event event5 = Event.builder()
+                    .name("Running")
+                    .description("Learn how to run faster")
+                    .location("Room 505")
+                    .date(LocalDateTime.now().plusDays(3))
+                    .totalCapacity(25)
+                    .availableCapacity(25)
+                    .tenant(tenantB)
+                    .status(Status.CONFIRMED)
+                    .build();
+
             eventRepository.save(event1);
             eventRepository.save(event2);
+            eventRepository.save(event3);
+            eventRepository.save(event4);
+            eventRepository.save(event5);
 
             Booking booking1 = Booking.builder()
                     .userId(alice.getId())
@@ -123,8 +193,29 @@ public class DataInitializer {
                     .createdAt(LocalDateTime.now())
                     .build();
 
+            Booking booking3 = Booking.builder()
+                    .userId(ariana.getId())
+                    .event(event3)
+                    .tenant(tenantA)
+                    .quantity(5)
+                    .status(Status.CONFIRMED)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            Booking booking4 = Booking.builder()
+                    .userId(alice.getId())
+                    .event(event3)
+                    .tenant(tenantA)
+                    .quantity(2)
+                    .status(Status.CONFIRMED)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
             bookingRepository.save(booking1);
             bookingRepository.save(booking2);
+            bookingRepository.save(booking3);
+            bookingRepository.save(booking4);
+
         };
     }
 }
