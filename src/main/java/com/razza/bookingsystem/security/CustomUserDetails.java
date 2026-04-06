@@ -54,11 +54,11 @@ public class CustomUserDetails implements UserDetails {
     /**
      * Returns the username used for authentication.
      *
-     * @return the user's email
+     * @return the username
      */
     @Override
     public String getUsername() {
-        return email;
+        return email + "|" + tenant.getName();
     }
 
     /**

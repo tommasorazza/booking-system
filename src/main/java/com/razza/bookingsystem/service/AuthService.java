@@ -129,8 +129,7 @@ public class AuthService {
         String username = email + "|" + tenantName;
 
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(username, password)
-        );
+                new UsernamePasswordAuthenticationToken(username, password));
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 

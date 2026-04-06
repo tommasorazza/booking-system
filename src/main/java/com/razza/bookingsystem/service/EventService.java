@@ -81,9 +81,13 @@ public class EventService {
         event.setDescription(dto.getDescription());
         event.setLocation(dto.getLocation());
         event.setDate(dto.getDate());
-        if(event.getTotalCapacity() > dto.getTotalCapacity() && bookingRepository.findByEventId(id).isPresent()){
+        if(event.getTotalCapacity() > dto.getTotalCapacity()){
             int activeBookings = bookingRepository.countByEventIdAndStatus(id, Status.CONFIRMED);
-            throw new EventDecreaseException(activeBookings);
+            if (activeBookings > 0) {
+                throw new EventDecreaseException(activeBookings);
+            }
+            event.setTotalCapacity(dto.getTotalCapacity());
+            event.setAvailableCapacity(dto.getTotalCapacity());
         } else {
             int bookedSeats = event.getTotalCapacity() - event.getAvailableCapacity();
             event.setTotalCapacity(dto.getTotalCapacity());

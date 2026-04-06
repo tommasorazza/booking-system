@@ -85,7 +85,7 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Event", eventId));
 
         if (!event.getTenant().getId().equals(tenant.getId())) {
-            throw new CrossTenantException();
+            throw new ResourceNotFoundException("event", eventId);
         }
 
         if (event.getAvailableCapacity() < quantity) {
@@ -98,7 +98,7 @@ public class BookingService {
                     .orElseThrow(() -> new ResourceNotFoundException("user",  userId));
 
             if (!user.getTenant().getId().equals(tenant.getId())) {
-                throw new CrossTenantException();
+                throw new ResourceNotFoundException("user", currentUserId);
             }
         }
 
@@ -156,7 +156,7 @@ public class BookingService {
         }
 
         if (!booking.getEvent().getTenant().getId().equals(userTenant.getId())) {
-            throw new CrossTenantException();
+            throw new ResourceNotFoundException("booking", bookingId);
         }
 
         if (booking.getEvent().getAvailableCapacity() < quantity - booking.getQuantity()) {
@@ -204,7 +204,7 @@ public class BookingService {
         }
 
         if (!booking.getTenant().getId().equals(tenant.getId())) {
-            throw new CrossTenantException();
+            throw new ResourceNotFoundException("booking", bookingId);
         }
 
         if (booking.getStatus() == com.razza.bookingsystem.domain.Status.CANCELLED) {
@@ -238,8 +238,8 @@ public class BookingService {
      */
     public List<BookingDto> getUserBookings(UUID userId, UUID currentUserId, Tenant tenant, boolean isAdmin) {
 
-        if (!isAdmin && !userId.equals(currentUserId)) {
-            throw new AccessDeniedException("Access denied");
+        if (!isAdmin){
+            userId = currentUserId;
         }
 
         if (bookingRepository.findByUserIdAndTenant(userId, tenant).isEmpty()) {

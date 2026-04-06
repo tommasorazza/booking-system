@@ -94,8 +94,8 @@ public class BookingController {
      * @return list of BookingDto
      */
 
-    @GetMapping("/users/{userId}/bookings")
-    public List<BookingDto> getUserBookings(@PathVariable UUID userId, Authentication authentication) {
+    @GetMapping("/bookings/userBookings")
+    public List<BookingDto> getUserBookings(@RequestParam(required = false) UUID userId, Authentication authentication) {
         CustomUserDetails user = getUser(authentication);
 
         return bookingService.getUserBookings(
