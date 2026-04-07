@@ -81,43 +81,4 @@ public class CustomUserDetails implements UserDetails {
         return authorities;
     }
 
-    /**
-     * Indicates whether the user's account has expired.
-     *
-     * @return true since account expiration is not currently enforced
-     */
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    /**
-     * Indicates whether the user is locked.
-     *
-     * @return true since account locking is not currently enforced
-     */
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    /**
-     * Indicates whether the user's credentials have expired.
-     *
-     * @return true since credential expiration is not currently enforced
-     */
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    /**
-     * Indicates whether the user is enabled.
-     *
-     * @return true since all users are considered enabled by default
-     */
-    @Override
-    public boolean isEnabled() {
-        return true;
-    }
 }

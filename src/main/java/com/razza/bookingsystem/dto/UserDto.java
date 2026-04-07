@@ -21,7 +21,7 @@ public class UserDto {
     /** Email address of the user. */
     private String email;
 
-    /** Role of the user in the system (e.g., ADMIN, USER). */
+    /** Role of the user in the system (ADMIN, USER). */
     private Role role;
 
 }

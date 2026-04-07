@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /**
  * Represents a user in the booking system.
- * Users belong to a tenant and can have different roles (e.g., ADMIN, USER).
+ * Users belong to a tenant and can have two roles (ADMIN, USER).
  */
 @Entity
 @Getter

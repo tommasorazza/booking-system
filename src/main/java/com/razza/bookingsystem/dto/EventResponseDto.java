@@ -30,9 +30,9 @@ public class EventResponseDto {
     /** Date and time of the event. */
     private LocalDateTime date;
 
-    /** Total number of tickets available for the event. */
+    /** Total number of seats available for the event. */
     private int totalCapacity;
 
-    /** Number of tickets still available for booking. */
+    /** Number of seats still available for booking. */
     private int availableCapacity;
 }

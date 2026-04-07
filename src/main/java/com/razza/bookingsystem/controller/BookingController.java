@@ -1,14 +1,10 @@
 package com.razza.bookingsystem.controller;
 
-import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.BookingDto;
-import com.razza.bookingsystem.repository.EventRepository;
-import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.security.CustomUserDetails;
 import com.razza.bookingsystem.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,25 +12,26 @@ import java.util.UUID;
 
 /**
  * Controller for booking operations.
- * Supports booking creation, cancellation, and retrieval.
+ * Provides endpoints for creating, updating, cancelling, and retrieving bookings.
  */
 @RestController
 @RequiredArgsConstructor
 public class BookingController {
 
     private final BookingService bookingService;
-    private final UserRepository userRepository;
-    private final EventRepository eventRepository;
 
     /**
-     * Creates a new booking for a given event and user.
+     * Creates a new booking for an event.
      *
-     * @param eventId the UUID of the event
-     * @param userId the UUID of the user
-     * @param quantity number of tickets to book
-     * @return the created BookingDto
+     * If the authenticated user is an admin, a booking can be created on behalf of another user.
+     * Otherwise, the booking is created for the authenticated user.
+     *
+     * @param eventId the ID of the event to book
+     * @param quantity the number of tickets to book
+     * @param userId optional ID of the user (used only by admins)
+     * @param authentication the current authenticated user
+     * @return the created booking as a BookingDto
      */
-
     @PostMapping("/bookings/{eventId}/book")
     public BookingDto createBooking(@PathVariable UUID eventId,
                                     @RequestParam int quantity,
@@ -53,8 +50,18 @@ public class BookingController {
         );
     }
 
+    /**
+     * Updates the quantity of an existing booking.
+     *
+     * Users can modify their own bookings. Admins can modify any booking within their tenant.
+     *
+     * @param bookingId the ID of the booking to update
+     * @param quantity the new quantity of tickets
+     * @param authentication the current authenticated user
+     * @return the updated booking as a BookingDto
+     */
     @PutMapping("/bookings/{bookingId}")
-    public BookingDto ModifyQuantity(@PathVariable UUID bookingId,
+    public BookingDto modifyQuantity(@PathVariable UUID bookingId,
                                      @RequestParam int quantity,
                                      Authentication authentication) {
 
@@ -70,11 +77,13 @@ public class BookingController {
     }
 
     /**
-     * Cancels a booking by its ID.
+     * Cancels a booking.
      *
-     * @param id the booking UUID
+     * Users can cancel their own bookings. Admins can cancel any booking within their tenant.
+     *
+     * @param id the ID of the booking to cancel
+     * @param authentication the current authenticated user
      */
-
     @DeleteMapping("/bookings/{id}")
     public void cancelBooking(@PathVariable UUID id, Authentication authentication) {
         CustomUserDetails user = getUser(authentication);
@@ -88,14 +97,19 @@ public class BookingController {
     }
 
     /**
-     * Retrieves all bookings for a given user.
+     * Retrieves bookings for a user.
      *
-     * @param userId the UUID of the user
+     * If the authenticated user is an admin, bookings for another user can be retrieved.
+     * Otherwise, only the authenticated user's bookings are returned.
+     *
+     * @param userId optional ID of the user whose bookings are requested
+     * @param authentication the current authenticated user
      * @return list of BookingDto
      */
-
     @GetMapping("/bookings/userBookings")
-    public List<BookingDto> getUserBookings(@RequestParam(required = false) UUID userId, Authentication authentication) {
+    public List<BookingDto> getUserBookings(@RequestParam(required = false) UUID userId,
+                                            Authentication authentication) {
+
         CustomUserDetails user = getUser(authentication);
 
         return bookingService.getUserBookings(
@@ -107,12 +121,11 @@ public class BookingController {
     }
 
     /**
-     * Returns basic information about the currently authenticated user.
+     * Returns information about the currently authenticated user.
      *
-     * This endpoint is useful for debugging authentication and authorization.
-     * It returns the username along with the granted authorities (roles).
+     * Useful for debugging authentication and verifying assigned roles.
      *
-     * @param auth the Authentication object injected by Spring Security
+     * @param auth the Authentication object
      * @return a string containing the username and roles
      */
     @GetMapping("/whoami")
@@ -121,23 +134,17 @@ public class BookingController {
     }
 
     /**
-     * Extracts the CustomUserDetails object from the Authentication.
-     *
-     * This method assumes that the principal stored in the Authentication
-     * is an instance of CustomUserDetails.
+     * Extracts the authenticated user's details.
      *
      * @param auth the Authentication object
-     * @return the authenticated user as CustomUserDetails
-     * @throws ClassCastException if the principal is not of type CustomUserDetails
-     */
+     * @return the authenticated user details
+     * */
     private CustomUserDetails getUser(Authentication auth) {
         return (CustomUserDetails) auth.getPrincipal();
     }
 
     /**
      * Checks whether the authenticated user has admin privileges.
-     *
-     * This method verifies if the user has the ROLE_ADMIN authority.
      *
      * @param auth the Authentication object
      * @return true if the user has ROLE_ADMIN, false otherwise

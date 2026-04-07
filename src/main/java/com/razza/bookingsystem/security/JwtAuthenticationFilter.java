@@ -51,7 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * Steps:
      * 1. Read the Authorization header
      * 2. Check if it contains a Bearer token
-     * 3. Extract email (username) from the token
+     * 3. Extract username from the token
      * 4. Load user details
      * 5. Validate the token
      * 6. Extract roles and convert to Spring Security authorities
@@ -86,20 +86,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         /**
-         * Extract JWT token and email from it.
+         * Extract JWT token and username from it.
          */
         final String jwt = authHeader.substring(7);
-        final String email = jwtService.extractEmail(jwt);
+        final String username = jwtService.extractSubject(jwt);
 
         /**
-         * Proceed only if email is present and no authentication is set yet.
+         * Proceed only if username is present and no authentication is set yet.
          */
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
             /**
              * Load user details from the database.
              */
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             /**
              * Validate the JWT token against user details.
@@ -110,7 +110,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                  * Extract roles from the token and convert them into authorities.
                  * Each role is prefixed with ROLE_ as required by Spring Security.
                  */
-                List<String> roles = jwtService.extractRoles(jwt);
+                List<SimpleGrantedAuthority> roles = jwtService.extractRoles(jwt);
 
                 List<SimpleGrantedAuthority> authorities = roles.stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role))

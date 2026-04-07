@@ -8,7 +8,7 @@ import java.util.UUID;
 
 /**
  * Represents a booking made by a user for a specific event.
- * A user can book multiple tickets for an event, but cannot book
+ * A user can book multiple seats for an event, but cannot book
  * the same event more than once (enforced by unique constraint).
  */
 @Entity
@@ -39,11 +39,12 @@ public class Booking {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
+    /** tenant to which user and event belong to */
     @ManyToOne
     @JoinColumn(name = "tenant_id")
     private Tenant tenant;
 
-    /** Number of tickets booked. */
+    /** Number of seats booked. */
     private int quantity;
 
     /** Current status of the booking (CONFIRMED, CANCELLED). */

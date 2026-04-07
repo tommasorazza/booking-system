@@ -30,45 +30,18 @@ import java.util.UUID;
  * - tenant resolution and creation
  *
  * Passwords are hashed before being stored.
- * JWT tokens are generated upon successful authentication.
+ * JWT tokens are generated after successful authentication.
  */
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-    /**
-     * Repository for user persistence.
-     */
     private final UserRepository userRepository;
-
-    /**
-     * Mapper for converting User entities to DTOs.
-     */
     private final UserMapper userMapper;
-
-    /**
-     * Encoder used to hash user passwords.
-     */
     private final PasswordEncoder passwordEncoder;
-
-    /**
-     * Service used to generate JWT tokens.
-     */
     private final JwtService jwtService;
-
-    /**
-     * Authentication manager used to verify credentials during login.
-     */
     private final AuthenticationManager authenticationManager;
-
-    /**
-     * Service for loading user-specific security details.
-     */
     private final CustomUserDetailsService userDetailsService;
-
-    /**
-     * Repository for tenant persistence and lookup.
-     */
     private final TenantRepository tenantRepository;
 
     /**
@@ -86,7 +59,7 @@ public class AuthService {
      * @param tenantName name of the tenant
      * @return created user as a DTO
      *
-     * @throws UserAlreadyExistsException if a user with the same email already exists in the tenant
+     * @throws UserAlreadyExistsException if a user with the same email already exists within the tenant
      */
     public UserDto signup(String email, String password, String tenantName) {
 

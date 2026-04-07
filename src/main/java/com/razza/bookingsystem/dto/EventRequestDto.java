@@ -27,7 +27,7 @@ public class EventRequestDto {
     /** Date and time of the event. */
     private LocalDateTime date;
 
-    /** Total number of tickets available for the event. */
+    /** Total number of seats available for the event. */
     private int totalCapacity;
 
 }

@@ -28,7 +28,7 @@ public class BookingDto {
     /** ID of the user who made the booking. */
     private UUID userId;
 
-    /** Number of tickets booked. */
+    /** Number of seats booked. */
     private int quantity;
 
     /** Current status of the booking (CONFIRMED, CANCELLED). */

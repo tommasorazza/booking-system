@@ -24,6 +24,6 @@ public class Tenant {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /** Name of the tenant (e.g., company or organization name). */
+    /** Name of the tenant (like a company or organization name). */
     private String name;
 }

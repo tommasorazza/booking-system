@@ -15,7 +15,7 @@ import java.util.UUID;
 
 /**
  * Controller for authentication-related operations such as signup and login.
- * Handles JWT token generation and user registration.
+ * Handles user registration and JWT-based authentication.
  */
 @RestController
 @RequestMapping("/auth")
@@ -25,39 +25,46 @@ public class AuthController {
     private final AuthService authService;
 
     /**
-     * Registers a new user with default tenant assignment.
+     * Registers a new user.
      *
-     * @param userDto the user registration details
-     * @return the registered user's data as UserDto
+     * @param signupRequest request containing email, password, and tenant name
+     * @return the created user as a UserDto
      */
     @PostMapping("/signup")
     public UserDto signup(@RequestBody SignupRequest signupRequest) {
-        return authService.signup(signupRequest.getEmail(), signupRequest.getPassword(), signupRequest.getTenantName());
+        return authService.signup(
+                signupRequest.getEmail(),
+                signupRequest.getPassword(),
+                signupRequest.getTenantName()
+        );
     }
 
     /**
      * Authenticates a user and returns a JWT token.
      *
-     * @param email the user's email
-     * @param password the user's password
-     * @return JWT token as a String
+     * @param loginRequest request containing email, password, and tenant name
+     * @return a JWT token as a String
      */
     @PostMapping("/login")
     public String login(@RequestBody LoginRequest loginRequest) {
-        return authService.login(loginRequest.getEmail(), loginRequest.getPassword(), loginRequest.getTenantName());
+        return authService.login(
+                loginRequest.getEmail(),
+                loginRequest.getPassword(),
+                loginRequest.getTenantName()
+        );
     }
 
     /**
-     * Promotes a user to ADMIN role within the tenant of the authenticated user.
+     * Promotes a user to ADMIN role within the authenticated user's tenant.
      *
-     * Access restricted to users with ADMIN role.
+     * Access is restricted to users with ADMIN role.
      *
-     * @param userId the UUID of the user to promote
-     * @param authentication the current authenticated principal
-     * @return the updated user as a DTO
+     * @param userId the ID of the user to promote
+     * @param authentication the current authenticated user
+     * @return the updated user as a UserDto
      */
     @PreAuthorize("hasRole('ADMIN')")
-    @PutMapping("users/{userId}")
+    @PutMapping("/users/{userId}")
     public UserDto makeAdmin(@PathVariable UUID userId, Authentication authentication) {
         CustomUserDetails user = getUser(authentication);
         Tenant tenant = user.getTenant();
@@ -65,18 +72,12 @@ public class AuthController {
     }
 
     /**
-     * Extracts the CustomUserDetails object from the Authentication.
-     *
-     * This method assumes that the principal stored in the Authentication
-     * is an instance of CustomUserDetails.
+     * Extracts the CustomUserDetails from the Authentication object.
      *
      * @param auth the Authentication object
-     * @return the authenticated user as CustomUserDetails
-     * @throws ClassCastException if the principal is not of type CustomUserDetails
+     * @return the authenticated user details
      */
-    private CustomUserDetails getUser(org.springframework.security.core.Authentication auth) {
+    private CustomUserDetails getUser(Authentication auth) {
         return (CustomUserDetails) auth.getPrincipal();
     }
-
-
 }

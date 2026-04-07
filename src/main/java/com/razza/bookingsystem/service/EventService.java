@@ -15,15 +15,25 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
 /**
  * Service responsible for managing Event entities.
- * Handles business logic related to event creation, retrieval,
- * updates, deletion, and paginated listing.
+ *
+ * Handles:
+ * - event creation
+ * - event retrieval
+ * - event updates
+ * - event deletion (soft delete via status)
+ * - paginated listing of events
+ *
+ * Enforces business rules such as tenant isolation
+ * and capacity constraints.
+ *
+ * Access: create,update and delete methods are intended to be accessed by ADMIN users only.
+ * Access control is enforced at the controller layer using @PreAuthorize annotations.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,12 +43,21 @@ public class EventService {
     private final BookingRepository bookingRepository;
     private final EventMapper eventMapper;
 
-
     /**
-     * Creates a new event in the system.
+     * Creates a new event within a tenant.
+     *
+     * Access: ADMIN only.
+     *
+     * Behavior:
+     * - maps the request DTO to an entity
+     * - assigns the tenant
+     * - initializes version and status
+     * - sets available capacity equal to total capacity
+     * - persists the event
      *
      * @param dto the event data transfer object containing event details
-     * @return the persisted event as a DTO
+     * @param tenant the tenant the authenticated user belongs to
+     * @return the created event as an EventResponseDto
      */
     @Transactional
     public EventResponseDto createEvent(EventRequestDto dto, Tenant tenant) {
@@ -52,36 +71,50 @@ public class EventService {
     }
 
     /**
-     * Retrieves an event by its unique identifier.
+     * Retrieves an event by its unique identifier within a tenant.
      *
      * @param id the UUID of the event
-     * @return the corresponding EventDto
-     * @throws RuntimeException if the event cannot be found
+     * @param tenant the tenant the authenticated user belongs to
+     * @return the corresponding EventResponseDto
+     * @throws ResourceNotFoundException if the event does not exist within the tenant
      */
     public EventResponseDto getEventById(UUID id, Tenant tenant) {
-        Event event = eventRepository.findByIdAndTenant(id,tenant)
+        Event event = eventRepository.findByIdAndTenant(id, tenant)
                 .orElseThrow(() -> new ResourceNotFoundException("event", id));
         return eventMapper.toDto(event);
     }
 
     /**
-     * Updates an existing event with new data.
+     * Updates an existing event.
+     *
+     * Access: ADMIN only.
+     *
+     * Behavior:
+     * - validates that the event exists within the tenant
+     * - updates basic event fields
+     * - handles capacity changes:
+     *   - decreasing capacity is only allowed if there are no active bookings
+     *   - increasing capacity preserves already booked seats
+     * - persists the updated event
      *
      * @param id the UUID of the event to update
      * @param dto the DTO containing updated event information
-     * @return the updated event as a DTO
-     * @throws RuntimeException if the event cannot be found
+     * @param tenant the tenant the authenticated user belongs to
+     * @return the updated event as an EventResponseDto
+     * @throws ResourceNotFoundException if the event does not exist within the tenant
+     * @throws EventDecreaseException if attempting to decrease capacity while bookings exist
      */
     @Transactional
     public EventResponseDto updateEvent(UUID id, EventRequestDto dto, Tenant tenant) {
         Event event = eventRepository.findByIdAndTenant(id, tenant)
-                .orElseThrow(() -> new ResourceNotFoundException("event",id));
+                .orElseThrow(() -> new ResourceNotFoundException("event", id));
 
         event.setName(dto.getName());
         event.setDescription(dto.getDescription());
         event.setLocation(dto.getLocation());
         event.setDate(dto.getDate());
-        if(event.getTotalCapacity() > dto.getTotalCapacity()){
+
+        if (event.getTotalCapacity() > dto.getTotalCapacity()) {
             int activeBookings = bookingRepository.countByEventIdAndStatus(id, Status.CONFIRMED);
             if (activeBookings > 0) {
                 throw new EventDecreaseException(activeBookings);
@@ -93,22 +126,31 @@ public class EventService {
             event.setTotalCapacity(dto.getTotalCapacity());
             event.setAvailableCapacity(dto.getTotalCapacity() - bookedSeats);
         }
+
         Event updated = eventRepository.save(event);
         return eventMapper.toDto(updated);
     }
 
     /**
-     * Deletes an event from the system.
+     * Deletes (soft deletes) an event.
+     *
+     * Access: ADMIN only.
+     *
+     * Behavior:
+     * - validates that the event exists within the tenant
+     * - prevents deletion if active bookings exist
+     * - marks the event as CANCELLED instead of removing it
      *
      * @param id the UUID of the event to delete
+     * @param tenant the tenant the authenticated user belongs to
+     * @throws ResourceNotFoundException if the event does not exist within the tenant
+     * @throws EventDeleteException if active bookings exist for the event
      */
     @Transactional
-    public void deleteEvent(UUID id, Tenant tenant,  Boolean isAdmin) {
-        if (!isAdmin) {
-            throw new AccessDeniedException("Access denied");
-        }
+    public void deleteEvent(UUID id, Tenant tenant) {
         Event event = eventRepository.findByIdAndTenant(id, tenant)
                 .orElseThrow(() -> new ResourceNotFoundException("event", id));
+
         int activeBookings = bookingRepository
                 .countByEventIdAndStatus(id, Status.CONFIRMED);
 
@@ -116,18 +158,19 @@ public class EventService {
             throw new EventDeleteException(activeBookings);
         }
 
-        event.setStatus(com.razza.bookingsystem.domain.Status.CANCELLED);
+        event.setStatus(Status.CANCELLED);
         eventRepository.save(event);
     }
+
     /**
-     * Retrieves a paginaPage<Event> findByTenantId(UUID tenantId, Pageable pageable);ted list of events.
+     * Retrieves a paginated list of events within a tenant.
      *
      * @param pageable pagination and sorting configuration
-     * @return a page of EventDto objects
+     * @param tenant the tenant the authenticated user belongs to
+     * @return a Page of EventResponseDto
      */
     public Page<EventResponseDto> getAllEvents(Pageable pageable, Tenant tenant) {
         return eventRepository.findByTenant(tenant, pageable)
                 .map(eventMapper::toDto);
     }
-
 }

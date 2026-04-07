@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
  * overridden.
  *
  * The configured security scheme will appear in Swagger UI, allowing users
- * to authorize requests by providing a valid JWT token.</p>
+ * to authorize requests by providing a valid JWT token.
  */
 @Configuration
 public class OpenApiConfig {
@@ -28,7 +28,6 @@ public class OpenApiConfig {
      *  Uses HTTP authentication
      *  Applies the "bearer" scheme
      *  Specifies JWT as the token format
-     *
      *
      * All endpoints will require this security scheme by default.
      *

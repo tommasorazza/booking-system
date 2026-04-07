@@ -26,57 +26,41 @@ import java.util.List;
  * - booking creation
  * - booking modification
  * - booking cancellation
- * - capacity updates
+ * - retrieving bookings
  *
- * Ensures business rules such as seat availability,
+ * Enforces business rules such as seat availability,
  * tenant isolation, and access control.
  */
 @Service
 @RequiredArgsConstructor
 public class BookingService {
-
-    /**
-     * Repository for booking persistence.
-     */
     private final BookingRepository bookingRepository;
-
-    /**
-     * Repository for event persistence.
-     */
     private final EventRepository eventRepository;
-
-    /**
-     * Mapper for converting Booking entities to DTOs.
-     */
     private final BookingMapper bookingMapper;
-
-    /**
-     * Repository for user persistence.
-     */
     private final UserRepository userRepository;
 
     /**
      * Creates a new booking for a given event.
      *
      * Behavior:
-     * - validates event existence
+     * - validates that the event exists
      * - enforces tenant isolation
      * - checks seat availability
-     * - allows admins to book on behalf of another user
-     * - prevents duplicate bookings for the same event
-     * - reduces available capacity
+     * - allows admins to book on behalf of another user within the same tenant
+     * - prevents duplicate bookings for the same event and user
+     * - decreases available event capacity
      * - persists the booking
      *
      * @param eventId identifier of the event
-     * @param userId target user identifier when admin is booking
+     * @param userId identifier of the target user (used when admin is booking)
      * @param currentUserId identifier of the authenticated user
-     * @param tenant tenant context of the request
+     * @param tenant tenant of the requesting user
      * @param quantity number of seats requested
      * @param isAdmin whether the current user has admin privileges
-     * @return created booking as a DTO
-     * @throws RuntimeException if event not found, tenant mismatch,
-     *                          insufficient capacity, duplicate booking,
-     *                          or invalid user context
+     * @return the created booking as a {@link BookingDto}
+     * @throws ResourceNotFoundException if the event or user does not exist or does not belong to the tenant
+     * @throws NotEnoughSeatsException if there is insufficient capacity
+     * @throws BookingAlreadyPresentException if a booking already exists for the same user and event
      */
     @Transactional
     public BookingDto createBooking(UUID eventId, UUID userId, UUID currentUserId, Tenant tenant, int quantity, Boolean isAdmin) {
@@ -95,7 +79,7 @@ public class BookingService {
         if (isAdmin) {
             currentUserId = userId;
             User user = userRepository.findById(currentUserId)
-                    .orElseThrow(() -> new ResourceNotFoundException("user",  userId));
+                    .orElseThrow(() -> new ResourceNotFoundException("user", userId));
 
             if (!user.getTenant().getId().equals(tenant.getId())) {
                 throw new ResourceNotFoundException("user", currentUserId);
@@ -129,21 +113,22 @@ public class BookingService {
      * Modifies the quantity of an existing booking.
      *
      * Behavior:
-     * - validates booking existence
+     * - validates that the booking exists
      * - enforces ownership or admin access
      * - enforces tenant isolation
-     * - checks additional capacity requirements
+     * - checks if additional seats are available when increasing quantity
      * - updates event capacity accordingly
-     * - persists updated booking
+     * - persists the updated booking
      *
      * @param bookingId identifier of the booking
      * @param userId identifier of the requesting user
      * @param userTenant tenant of the requesting user
      * @param quantity new desired quantity
      * @param isAdmin whether the user has admin privileges
-     * @return updated booking as a DTO
-     * @throws RuntimeException if booking not found, access denied,
-     *                          tenant mismatch, or insufficient capacity
+     * @return the updated booking as a {@link BookingDto}
+     * @throws ResourceNotFoundException if the booking does not exist or does not belong to the tenant
+     * @throws AccessDeniedException if the user is not allowed to modify the booking
+     * @throws NotEnoughSeatsException if there is insufficient capacity for the requested increase
      */
     @Transactional
     public BookingDto modifyQuantity(UUID bookingId, UUID userId, Tenant userTenant, int quantity, Boolean isAdmin) {
@@ -179,19 +164,19 @@ public class BookingService {
      * Cancels an existing booking.
      *
      * Behavior:
-     * - validates booking existence within tenant
+     * - validates that the booking exists within the tenant
      * - enforces ownership or admin access
      * - prevents duplicate cancellation
      * - restores event capacity
-     * - marks booking as cancelled
+     * - marks the booking as canceled
      *
      * @param bookingId identifier of the booking
      * @param currentUserId identifier of the requesting user
-     * @param tenant tenant context
+     * @param tenant tenant of the requesting user
      * @param isAdmin whether the user has admin privileges
-     * @throws RuntimeException if booking not found, already cancelled,
-     *                          or tenant mismatch
-     * @throws EntityNotFoundException if access is denied
+     * @throws ResourceNotFoundException if the booking does not exist within the tenant
+     * @throws AccessDeniedException if the user is not allowed to cancel the booking
+     * @throws BookingAlreadyCancelledException if the booking is already canceled
      */
     @Transactional
     public void cancelBooking(UUID bookingId, UUID currentUserId, Tenant tenant, boolean isAdmin) {
@@ -224,17 +209,17 @@ public class BookingService {
      * Retrieves all bookings for a specific user within a tenant.
      *
      * Behavior:
-     * - enforces that users can only access their own bookings unless admin
-     * - validates that the user has bookings in the tenant
+     * - non-admin users can only access their own bookings
+     * - admin users can access bookings of any user within the tenant
+     * - validates that bookings exist for the user within the tenant
      * - maps results to DTOs
      *
      * @param userId identifier of the target user
      * @param currentUserId identifier of the requesting user
-     * @param tenant tenant context
+     * @param tenant tenant of the requesting user
      * @param isAdmin whether the user has admin privileges
-     * @return list of bookings as DTOs
-     * @throws AccessDeniedException if access is not allowed
-     * @throws RuntimeException if user has no bookings in the tenant
+     * @return list of bookings as {@link BookingDto}
+     * @throws ResourceNotFoundException if no bookings are found for the user within the tenant
      */
     public List<BookingDto> getUserBookings(UUID userId, UUID currentUserId, Tenant tenant, boolean isAdmin) {
 

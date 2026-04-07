@@ -16,8 +16,7 @@ import java.util.UUID;
 
 /**
  * Controller for managing events.
- * Supports CRUD operations and event listing.
- * Admin-only operations should be secured via Spring Security.
+ * Provides CRUD operations and event retrieval scoped to the authenticated user's tenant.
  */
 @RestController
 @RequestMapping("/events")
@@ -28,23 +27,28 @@ public class EventController {
     private final PageableOpenAPIConverter pageableOpenAPIConverter;
 
     /**
-     * Creates a new event.
+     * Creates a new event within the authenticated user's tenant.
      *
-     * @param dto the event details
-     * @return the created EventDto
+     * Access restricted to users with ADMIN role.
+     *
+     * @param dto request containing event details
+     * @param user the authenticated user
+     * @return the created event as EventResponseDto
      */
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public EventResponseDto createEvent(@RequestBody EventRequestDto dto, @AuthenticationPrincipal CustomUserDetails user) {
-        return eventService.createEvent(
-                dto,
-                user.getTenant()
-        );    }
+    public EventResponseDto createEvent(@RequestBody EventRequestDto dto,
+                                        @AuthenticationPrincipal CustomUserDetails user) {
+
+        return eventService.createEvent(dto, user.getTenant());
+    }
 
     /**
-     * Returns a list of all events.
+     * Retrieves a paginated list of events for the authenticated user's tenant.
      *
-     * @return list of EventDto
+     * @param pageable pagination information (page number, size, sorting)
+     * @param user the authenticated user
+     * @return a page of EventResponseDto
      */
     @GetMapping
     public Page<EventResponseDto> getAllEvents(Pageable pageable,
@@ -54,10 +58,11 @@ public class EventController {
     }
 
     /**
-     * Returns an event by its ID.
+     * Retrieves an event by its ID within the authenticated user's tenant.
      *
-     * @param id the event UUID
-     * @return the EventDto
+     * @param id the ID of the event
+     * @param user the authenticated user
+     * @return the event as EventResponseDto
      */
     @GetMapping("/{id}")
     public EventResponseDto getEventById(@PathVariable UUID id,
@@ -65,12 +70,16 @@ public class EventController {
 
         return eventService.getEventById(id, user.getTenant());
     }
+
     /**
      * Updates an existing event.
      *
-     * @param id the event UUID
-     * @param dto the updated event details
-     * @return the updated EventDto
+     * Access restricted to users with ADMIN role.
+     *
+     * @param id the ID of the event to update
+     * @param dto request containing updated event details
+     * @param user the authenticated user
+     * @return the updated event as EventResponseDto
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -78,28 +87,22 @@ public class EventController {
                                         @RequestBody EventRequestDto dto,
                                         @AuthenticationPrincipal CustomUserDetails user) {
 
-        return eventService.updateEvent(
-                id,
-                dto,
-                user.getTenant()
-        );
+        return eventService.updateEvent(id, dto, user.getTenant());
     }
 
     /**
      * Deletes an event by its ID.
      *
-     * @param id the event UUID
+     * Access restricted to users with ADMIN role.
+     *
+     * @param id the ID of the event to delete
+     * @param user the authenticated user
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteEvent(@PathVariable UUID id,
                             @AuthenticationPrincipal CustomUserDetails user) {
 
-        eventService.deleteEvent(
-                id,
-                user.getTenant(),
-                true
-        );
+        eventService.deleteEvent(id, user.getTenant());
     }
-
 }

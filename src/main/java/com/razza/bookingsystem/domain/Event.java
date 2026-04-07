@@ -26,7 +26,7 @@ public class Event {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /** Name/title of the event. */
+    /** Name of the event. */
     private String name;
 
     /** Description or details about the event. */
