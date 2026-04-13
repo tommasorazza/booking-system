@@ -2,7 +2,7 @@ package com.razza.bookingsystem.domain;
 
 import lombok.*;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
@@ -36,7 +36,7 @@ public class Event {
     private String location;
 
     /** Date and time of the event. */
-    private LocalDateTime date;
+    private OffsetDateTime date;
 
     /** Total number of tickets available for the event. */
     private int totalCapacity;
@@ -49,11 +49,12 @@ public class Event {
     private Long version;
 
     /** Tenant the event belongs to */
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id")
     private Tenant tenant;
 
     /** Status of the event (CONFIRMED/CANCELLED) */
     @Enumerated(EnumType.STRING)
     private Status status;
+
 }

@@ -3,7 +3,7 @@ package com.razza.bookingsystem.domain;
 import lombok.*;
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
@@ -20,7 +20,7 @@ import java.util.UUID;
 @Table(
         name = "booking",
         uniqueConstraints = {@UniqueConstraint(columnNames = {"userId", "event_id"})},
-        indexes = { @Index(name = "booking_user_index", columnList = "userId"),
+        indexes = { @Index(name = "booking_user_index", columnList = "user_id"),
                 @Index(name = "booking_event_index", columnList = "event_id"),
                 @Index(name = "booking_tenant_index", columnList = "tenantId")}
 )
@@ -31,26 +31,28 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /** ID of the user who made the booking. */
-    private UUID userId;
+    /** User who created the booking. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    /** event that is being booked. */
-    @ManyToOne(fetch = FetchType.EAGER)
+    /** Event associated with this booking. */
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
-    /** tenant to which user and event belong to */
-    @ManyToOne
+    /** Tenant to which the booking belongs. */
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id")
     private Tenant tenant;
 
     /** Number of seats booked. */
     private int quantity;
 
-    /** Current status of the booking (CONFIRMED, CANCELLED). */
+    /** Current status of the booking (e.g., CONFIRMED, CANCELLED). */
     @Enumerated(EnumType.STRING)
     private Status status;
 
     /** Timestamp when the booking was created. */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

@@ -30,4 +30,5 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * @return an {@link Optional} containing the user if found, or empty otherwise
      */
     Optional<User> findByIdAndTenantId(UUID id, UUID tenantId);
+
 }

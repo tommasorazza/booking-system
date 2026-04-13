@@ -71,54 +71,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        /**
-         * Extract Authorization header from the request.
-         */
         final String authHeader = request.getHeader("Authorization");
 
-        /**
-         * If header is missing or does not contain a Bearer token,
-         * continue the filter chain without setting authentication.
-         */
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        /**
-         * Extract JWT token and username from it.
-         */
         final String jwt = authHeader.substring(7);
         final String username = jwtService.extractSubject(jwt);
 
-        /**
-         * Proceed only if username is present and no authentication is set yet.
-         */
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-            /**
-             * Load user details from the database.
-             */
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-            /**
-             * Validate the JWT token against user details.
-             */
             if (jwtService.isTokenValid(jwt, userDetails)) {
 
-                /**
-                 * Extract roles from the token and convert them into authorities.
-                 * Each role is prefixed with ROLE_ as required by Spring Security.
-                 */
-                List<SimpleGrantedAuthority> roles = jwtService.extractRoles(jwt);
+                List<SimpleGrantedAuthority> authorities = jwtService.extractRoles(jwt);
 
-                List<SimpleGrantedAuthority> authorities = roles.stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                        .toList();
-
-                /**
-                 * Create authentication token with user details and authorities.
-                 */
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,
@@ -126,23 +96,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 authorities
                         );
 
-                /**
-                 * Attach request-specific details to the authentication object.
-                 */
                 authToken.setDetails(
                         new WebAuthenticationDetailsSource().buildDetails(request)
                 );
 
-                /**
-                 * Store authentication in the SecurityContext.
-                 */
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
 
-        /**
-         * Continue processing the request.
-         */
         filterChain.doFilter(request, response);
     }
 }

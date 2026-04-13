@@ -61,7 +61,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                 user.getEmail(),
                 user.getPassword(),
                 user.getTenant(),
-                List.of(new SimpleGrantedAuthority("R OLE_" + user.getRole().name()))
+                List.of(new SimpleGrantedAuthority(user.getRole().name()))
         );
     }
 }

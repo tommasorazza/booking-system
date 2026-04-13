@@ -6,7 +6,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 /**
@@ -60,6 +60,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles UserDeleteException and returns 409 CONFLICT.
+     */
+    @ExceptionHandler(UserDeleteException.class)
+    public ResponseEntity<Map<String, Object>> handleUserDelete(UserDeleteException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /**
      * Handles EventDecreaseException and returns 409 CONFLICT.
      */
     @ExceptionHandler(EventDecreaseException.class)
@@ -84,6 +92,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles PastEventException and returns 409 CONFLICT.
+     */
+    @ExceptionHandler(PastEventException.class)
+    public ResponseEntity<Map<String, Object>> handleDate(PastEventException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /**
      * Handles ResourceNotFoundException and returns 404 NOT FOUND.
      */
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -97,6 +113,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
         return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    /**
+     * Handles QuantityException and returns 400 BAD_REQUEST.
+     */
+    @ExceptionHandler(QuantityException.class)
+    public ResponseEntity<Map<String, Object>> handleQuantity(QuantityException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    /**
+     * Handles IllegalArgumentException and returns 400 BAD_REQUEST.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     /**
@@ -123,7 +155,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(status)
                 .body(Map.of(
-                        "timestamp", LocalDateTime.now(),
+                        "timestamp", OffsetDateTime.now(),
                         "status", status.value(),
                         "error", message
                 ));

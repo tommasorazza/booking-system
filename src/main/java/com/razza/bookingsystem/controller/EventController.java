@@ -5,7 +5,6 @@ import com.razza.bookingsystem.dto.EventResponseDto;
 import com.razza.bookingsystem.security.CustomUserDetails;
 import com.razza.bookingsystem.service.EventService;
 import lombok.RequiredArgsConstructor;
-import org.springdoc.core.converters.PageableOpenAPIConverter;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,8 +23,6 @@ import java.util.UUID;
 public class EventController {
 
     private final EventService eventService;
-    private final PageableOpenAPIConverter pageableOpenAPIConverter;
-
     /**
      * Creates a new event within the authenticated user's tenant.
      *

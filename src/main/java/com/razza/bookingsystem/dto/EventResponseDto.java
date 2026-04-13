@@ -1,8 +1,9 @@
 package com.razza.bookingsystem.dto;
 
 import lombok.*;
+
+import java.time.OffsetDateTime;
 import java.util.UUID;
-import java.time.LocalDateTime;
 
 /**
  * Data Transfer Object representing an event.
@@ -28,7 +29,7 @@ public class EventResponseDto {
     private String location;
 
     /** Date and time of the event. */
-    private LocalDateTime date;
+    private OffsetDateTime date;
 
     /** Total number of seats available for the event. */
     private int totalCapacity;

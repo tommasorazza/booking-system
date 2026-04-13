@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Initializes sample data in the database at application startup.
@@ -120,7 +120,7 @@ public class DataInitializer {
                         .name("Flowers")
                         .description("Learn to grow flowers")
                         .location("Room 101")
-                        .date(LocalDateTime.now().plusDays(1))
+                        .date(OffsetDateTime.now().plusDays(1))
                         .totalCapacity(30)
                         .availableCapacity(28)
                         .tenant(tenantA)
@@ -131,7 +131,7 @@ public class DataInitializer {
                         .name("Rocks")
                         .description("Learn different rocks")
                         .location("Room 202")
-                        .date(LocalDateTime.now().plusDays(2))
+                        .date(OffsetDateTime.now().plusDays(2))
                         .totalCapacity(25)
                         .availableCapacity(24)
                         .tenant(tenantB)
@@ -142,7 +142,7 @@ public class DataInitializer {
                         .name("Origami")
                         .description("Learn paper origami")
                         .location("Room 303")
-                        .date(LocalDateTime.now().plusDays(1))
+                        .date(OffsetDateTime.now().plusDays(1))
                         .totalCapacity(15)
                         .availableCapacity(8)
                         .tenant(tenantA)
@@ -153,7 +153,7 @@ public class DataInitializer {
                         .name("Yoga")
                         .description("Learn yoga")
                         .location("Room 404")
-                        .date(LocalDateTime.now().plusDays(2))
+                        .date(OffsetDateTime.now().plusDays(2))
                         .totalCapacity(50)
                         .availableCapacity(50)
                         .tenant(tenantC)
@@ -164,7 +164,7 @@ public class DataInitializer {
                         .name("Running")
                         .description("Learn how to run faster")
                         .location("Room 505")
-                        .date(LocalDateTime.now().plusDays(3))
+                        .date(OffsetDateTime.now().plusDays(3))
                         .totalCapacity(25)
                         .availableCapacity(25)
                         .tenant(tenantB)
@@ -178,39 +178,39 @@ public class DataInitializer {
                 eventRepository.save(event5);
 
                 Booking booking1 = Booking.builder()
-                        .userId(alice.getId())
+                        .user(alice)
                         .event(event1)
                         .tenant(tenantA)
                         .quantity(2)
                         .status(Status.CONFIRMED)
-                        .createdAt(LocalDateTime.now())
+                        .createdAt(OffsetDateTime.now())
                         .build();
 
                 Booking booking2 = Booking.builder()
-                        .userId(bob.getId())
+                        .user(bob)
                         .event(event2)
                         .tenant(tenantB)
                         .quantity(1)
                         .status(Status.CONFIRMED)
-                        .createdAt(LocalDateTime.now())
+                        .createdAt(OffsetDateTime.now())
                         .build();
 
                 Booking booking3 = Booking.builder()
-                        .userId(ariana.getId())
+                        .user(ariana)
                         .event(event3)
                         .tenant(tenantA)
                         .quantity(5)
                         .status(Status.CONFIRMED)
-                        .createdAt(LocalDateTime.now())
+                        .createdAt(OffsetDateTime.now())
                         .build();
 
                 Booking booking4 = Booking.builder()
-                        .userId(alice.getId())
+                        .user(alice)
                         .event(event3)
                         .tenant(tenantA)
                         .quantity(2)
                         .status(Status.CONFIRMED)
-                        .createdAt(LocalDateTime.now())
+                        .createdAt(OffsetDateTime.now())
                         .build();
 
                 bookingRepository.save(booking1);

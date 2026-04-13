@@ -2,7 +2,7 @@ package com.razza.bookingsystem.dto;
 
 import com.razza.bookingsystem.domain.Status;
 import lombok.*;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
@@ -35,5 +35,5 @@ public class BookingDto {
     private Status status;
 
     /** Timestamp when the booking was created. */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

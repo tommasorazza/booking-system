@@ -1,10 +1,14 @@
 package com.razza.bookingsystem.controller;
 
+import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.BookingDto;
+import com.razza.bookingsystem.exception.ResourceNotFoundException;
+import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.security.CustomUserDetails;
 import com.razza.bookingsystem.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +23,7 @@ import java.util.UUID;
 public class BookingController {
 
     private final BookingService bookingService;
+    private final UserRepository userRepository;
 
     /**
      * Creates a new booking for an event.
@@ -29,24 +34,31 @@ public class BookingController {
      * @param eventId the ID of the event to book
      * @param quantity the number of tickets to book
      * @param userId optional ID of the user (used only by admins)
-     * @param authentication the current authenticated user
+     * @param user the authenticated user details
      * @return the created booking as a BookingDto
      */
     @PostMapping("/bookings/{eventId}/book")
     public BookingDto createBooking(@PathVariable UUID eventId,
                                     @RequestParam int quantity,
                                     @RequestParam(required = false) UUID userId,
-                                    Authentication authentication) {
+                                    @AuthenticationPrincipal CustomUserDetails user) {
 
-        CustomUserDetails user = getUser(authentication);
+        User targetUser = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("user", userId));
+
+        Boolean isAdmin = user.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        User currentUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("user", user.getId()));
 
         return bookingService.createBooking(
                 eventId,
-                userId,
-                user.getId(),
+                targetUser,
+                currentUser,
                 user.getTenant(),
                 quantity,
-                isAdmin(authentication)
+                isAdmin
         );
     }
 
@@ -67,9 +79,12 @@ public class BookingController {
 
         CustomUserDetails user = getUser(authentication);
 
+        User currentUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("user", user.getId()));
+
         return bookingService.modifyQuantity(
                 bookingId,
-                user.getId(),
+                currentUser,
                 user.getTenant(),
                 quantity,
                 isAdmin(authentication)
@@ -88,9 +103,12 @@ public class BookingController {
     public void cancelBooking(@PathVariable UUID id, Authentication authentication) {
         CustomUserDetails user = getUser(authentication);
 
+        User currentUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("user", user.getId()));
+
         bookingService.cancelBooking(
                 id,
-                user.getId(),
+                currentUser,
                 user.getTenant(),
                 isAdmin(authentication)
         );
@@ -138,7 +156,7 @@ public class BookingController {
      *
      * @param auth the Authentication object
      * @return the authenticated user details
-     * */
+     */
     private CustomUserDetails getUser(Authentication auth) {
         return (CustomUserDetails) auth.getPrincipal();
     }

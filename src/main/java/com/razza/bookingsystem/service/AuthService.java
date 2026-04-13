@@ -108,29 +108,4 @@ public class AuthService {
 
         return jwtService.generateToken(userDetails);
     }
-
-    /**
-     * Promotes an existing user to ADMIN within a specific tenant.
-     *
-     * Behavior:
-     * - retrieves the user scoped to the given tenant
-     * - updates the role to ADMIN
-     * - persists the updated user
-     *
-     * @param userId identifier of the user to promote
-     * @param tenant tenant to which the user belongs
-     * @return updated user as a DTO
-     *
-     * @throws ResourceNotFoundException if the user is not found in the given tenant
-     */
-    public UserDto makeAdmin(UUID userId, Tenant tenant) {
-
-        User user = userRepository.findByIdAndTenantId(userId, tenant.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("user", userId));
-
-        user.setRole(Role.ADMIN);
-
-        User saved = userRepository.save(user);
-        return userMapper.toDto(saved);
-    }
 }

@@ -9,15 +9,17 @@ import com.razza.bookingsystem.exception.*;
 import com.razza.bookingsystem.mapper.BookingMapper;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
-import com.razza.bookingsystem.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.List;
+
+import static com.razza.bookingsystem.domain.Status.CANCELLED;
+import static com.razza.bookingsystem.domain.Status.CONFIRMED;
 
 /**
  * Service responsible for managing bookings.
@@ -37,7 +39,6 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final EventRepository eventRepository;
     private final BookingMapper bookingMapper;
-    private final UserRepository userRepository;
 
     /**
      * Creates a new booking for a given event.
@@ -52,8 +53,8 @@ public class BookingService {
      * - persists the booking
      *
      * @param eventId identifier of the event
-     * @param userId identifier of the target user (used when admin is booking)
-     * @param currentUserId identifier of the authenticated user
+     * @param user target user for the booking (used when admin books on behalf of someone)
+     * @param currentUser authenticated user performing the request
      * @param tenant tenant of the requesting user
      * @param quantity number of seats requested
      * @param isAdmin whether the current user has admin privileges
@@ -63,13 +64,21 @@ public class BookingService {
      * @throws BookingAlreadyPresentException if a booking already exists for the same user and event
      */
     @Transactional
-    public BookingDto createBooking(UUID eventId, UUID userId, UUID currentUserId, Tenant tenant, int quantity, Boolean isAdmin) {
+    public BookingDto createBooking(UUID eventId, User user, User currentUser, Tenant tenant, int quantity, Boolean isAdmin) {
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event", eventId));
 
+        if(event.getDate().isBefore(OffsetDateTime.now())){
+            throw new PastEventException(event.getDate());
+        }
+
         if (!event.getTenant().getId().equals(tenant.getId())) {
             throw new ResourceNotFoundException("event", eventId);
+        }
+
+        if(quantity < 1){
+            throw new QuantityException(quantity);
         }
 
         if (event.getAvailableCapacity() < quantity) {
@@ -77,16 +86,15 @@ public class BookingService {
         }
 
         if (isAdmin) {
-            currentUserId = userId;
-            User user = userRepository.findById(currentUserId)
-                    .orElseThrow(() -> new ResourceNotFoundException("user", userId));
+            currentUser = user;
 
             if (!user.getTenant().getId().equals(tenant.getId())) {
-                throw new ResourceNotFoundException("user", currentUserId);
+                throw new ResourceNotFoundException("user");
             }
         }
 
-        var existingBooking = bookingRepository.findByUserIdAndEvent(currentUserId, event);
+        var existingBooking = bookingRepository.findByUserAndEventAndStatus(currentUser, event, CONFIRMED);
+        var existingCancelledBooking = bookingRepository.findByUserAndEventAndStatus(currentUser, event, CANCELLED);
 
         if (existingBooking.isPresent()) {
             throw new BookingAlreadyPresentException(existingBooking.get().getQuantity());
@@ -95,14 +103,23 @@ public class BookingService {
         event.setAvailableCapacity(event.getAvailableCapacity() - quantity);
         eventRepository.save(event);
 
+        if (existingCancelledBooking.isPresent()) {
+            Booking booking = existingCancelledBooking.get();
+            booking.setStatus(CONFIRMED);
+            booking.setQuantity(quantity);
+            booking.setCreatedAt(OffsetDateTime.now());
+            Booking saved = bookingRepository.save(booking);
+            return bookingMapper.toDto(saved);
+        }
+
         Booking booking = Booking.builder()
                 .id(UUID.randomUUID())
-                .userId(currentUserId)
+                .user(currentUser)
                 .event(event)
                 .tenant(event.getTenant())
                 .quantity(quantity)
                 .status(com.razza.bookingsystem.domain.Status.CONFIRMED)
-                .createdAt(LocalDateTime.now())
+                .createdAt(OffsetDateTime.now())
                 .build();
 
         Booking saved = bookingRepository.save(booking);
@@ -121,7 +138,7 @@ public class BookingService {
      * - persists the updated booking
      *
      * @param bookingId identifier of the booking
-     * @param userId identifier of the requesting user
+     * @param user authenticated user performing the request
      * @param userTenant tenant of the requesting user
      * @param quantity new desired quantity
      * @param isAdmin whether the user has admin privileges
@@ -131,17 +148,27 @@ public class BookingService {
      * @throws NotEnoughSeatsException if there is insufficient capacity for the requested increase
      */
     @Transactional
-    public BookingDto modifyQuantity(UUID bookingId, UUID userId, Tenant userTenant, int quantity, Boolean isAdmin) {
+    public BookingDto modifyQuantity(UUID bookingId, User user, Tenant userTenant, int quantity, Boolean isAdmin) {
 
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId));
 
-        if (!isAdmin && !userId.equals(booking.getUserId())) {
+        Event event = booking.getEvent();
+
+        if(event.getDate().isBefore(OffsetDateTime.now())){
+            throw new PastEventException(event.getDate());
+        }
+
+        if (!isAdmin && !user.equals(booking.getUser())) {
             throw new AccessDeniedException("Not allowed to modify this booking");
         }
 
         if (!booking.getEvent().getTenant().getId().equals(userTenant.getId())) {
             throw new ResourceNotFoundException("booking", bookingId);
+        }
+
+        if(quantity < 1){
+            throw new QuantityException(quantity);
         }
 
         if (booking.getEvent().getAvailableCapacity() < quantity - booking.getQuantity()) {
@@ -171,7 +198,7 @@ public class BookingService {
      * - marks the booking as canceled
      *
      * @param bookingId identifier of the booking
-     * @param currentUserId identifier of the requesting user
+     * @param currentUser authenticated user performing the request
      * @param tenant tenant of the requesting user
      * @param isAdmin whether the user has admin privileges
      * @throws ResourceNotFoundException if the booking does not exist within the tenant
@@ -179,12 +206,18 @@ public class BookingService {
      * @throws BookingAlreadyCancelledException if the booking is already canceled
      */
     @Transactional
-    public void cancelBooking(UUID bookingId, UUID currentUserId, Tenant tenant, boolean isAdmin) {
+    public void cancelBooking(UUID bookingId, User currentUser, Tenant tenant, boolean isAdmin) {
 
         Booking booking = bookingRepository.findByIdAndTenant(bookingId, tenant)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId));
 
-        if (!isAdmin && !booking.getUserId().equals(currentUserId)) {
+        Event event = booking.getEvent();
+
+        if(event.getDate().isBefore(OffsetDateTime.now())){
+            throw new PastEventException(event.getDate());
+        }
+
+        if (!isAdmin && !booking.getUser().equals(currentUser)) {
             throw new AccessDeniedException("Access denied");
         }
 
@@ -192,16 +225,14 @@ public class BookingService {
             throw new ResourceNotFoundException("booking", bookingId);
         }
 
-        if (booking.getStatus() == com.razza.bookingsystem.domain.Status.CANCELLED) {
+        if (booking.getStatus() == CANCELLED) {
             throw new BookingAlreadyCancelledException();
         }
-
-        Event event = booking.getEvent();
 
         event.setAvailableCapacity(event.getAvailableCapacity() + booking.getQuantity());
         eventRepository.save(event);
 
-        booking.setStatus(com.razza.bookingsystem.domain.Status.CANCELLED);
+        booking.setStatus(CANCELLED);
         bookingRepository.save(booking);
     }
 
