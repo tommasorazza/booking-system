@@ -43,8 +43,10 @@ public class BookingController {
                                     @RequestParam(required = false) UUID userId,
                                     @AuthenticationPrincipal CustomUserDetails user) {
 
-        User targetUser = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("user", userId));
+        User targetUser = (userId != null)
+                ? userRepository.findById(userId)
+                  .orElseThrow(() -> new ResourceNotFoundException("user", userId))
+                : null;
 
         Boolean isAdmin = user.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));

@@ -81,10 +81,6 @@ public class BookingService {
             throw new QuantityException(quantity);
         }
 
-        if (event.getAvailableCapacity() < quantity) {
-            throw new NotEnoughSeatsException(event.getAvailableCapacity());
-        }
-
         if (isAdmin) {
             currentUser = user;
 
@@ -100,8 +96,11 @@ public class BookingService {
             throw new BookingAlreadyPresentException(existingBooking.get().getQuantity());
         }
 
-        event.setAvailableCapacity(event.getAvailableCapacity() - quantity);
-        eventRepository.save(event);
+        int result = eventRepository.decreaseCapacity(eventId, quantity);
+
+        if(result == 0){
+            throw new NotEnoughSeatsException();
+        }
 
         if (existingCancelledBooking.isPresent()) {
             Booking booking = existingCancelledBooking.get();
@@ -171,15 +170,11 @@ public class BookingService {
             throw new QuantityException(quantity);
         }
 
-        if (booking.getEvent().getAvailableCapacity() < quantity - booking.getQuantity()) {
-            throw new NotEnoughSeatsException(booking.getEvent().getAvailableCapacity());
+        int result = eventRepository.decreaseCapacity(event.getId(), quantity - booking.getQuantity());
+
+        if(result == 0){
+            throw new NotEnoughSeatsException();
         }
-
-        booking.getEvent().setAvailableCapacity(
-                booking.getEvent().getAvailableCapacity() - (quantity - booking.getQuantity())
-        );
-
-        eventRepository.save(booking.getEvent());
 
         booking.setQuantity(quantity);
 
@@ -205,7 +200,6 @@ public class BookingService {
      * @throws AccessDeniedException if the user is not allowed to cancel the booking
      * @throws BookingAlreadyCancelledException if the booking is already canceled
      */
-    @Transactional
     public void cancelBooking(UUID bookingId, User currentUser, Tenant tenant, boolean isAdmin) {
 
         Booking booking = bookingRepository.findByIdAndTenant(bookingId, tenant)

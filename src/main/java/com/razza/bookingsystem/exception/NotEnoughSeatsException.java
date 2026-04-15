@@ -15,7 +15,7 @@ public class NotEnoughSeatsException extends RuntimeException {
      *
      * @param availableSeats the number of seats still available for booking
      */
-    public NotEnoughSeatsException(int availableSeats) {
-        super("Not enough seats available for the booking, remaining available: " + availableSeats);
+    public NotEnoughSeatsException() {
+        super("Not enough seats available for the booking, remaining available: ");
     }
 }

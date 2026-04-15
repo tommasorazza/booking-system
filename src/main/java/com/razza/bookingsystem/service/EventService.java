@@ -13,12 +13,11 @@ import com.razza.bookingsystem.exception.ResourceNotFoundException;
 import com.razza.bookingsystem.mapper.EventMapper;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
-import com.razza.bookingsystem.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.Collection;
@@ -46,7 +45,6 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final BookingRepository bookingRepository;
-    private final UserRepository userRepository;
     private final EmailService emailService;
     private final EventMapper eventMapper;
 
@@ -76,7 +74,6 @@ public class EventService {
             throw new PastEventException(event.getDate());
         }
         event.setTenant(tenant);
-        event.setVersion(0L);
         event.setStatus(Status.CONFIRMED);
         event.setAvailableCapacity(event.getTotalCapacity());
         if(event.getTotalCapacity() > 10000){
