@@ -47,13 +47,7 @@ class BookingConcurrencyTest {
 
     @Autowired
     private TenantRepository tenantRepository;
-
-    /**
-     * Tests that only one booking succeeds when multiple concurrent
-     * requests are made for a single remaining seat.
-     *
-     * @throws Exception if thread execution is interrupted
-     */
+    
     @Test
     void only_one_booking_should_succeed_when_one_seat_left() throws Exception {
 

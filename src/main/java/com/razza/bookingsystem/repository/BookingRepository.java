@@ -2,6 +2,9 @@ package com.razza.bookingsystem.repository;
 
 import com.razza.bookingsystem.domain.*;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -14,11 +17,11 @@ import java.util.UUID;
 public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     /**
-     * Finds a booking for a specific user and event.
-     * Enforces the rule that a user can have at most one booking per event.
+     * Finds a booking for a specific user, event, and status.
      *
-     * @param user the User object  
+     * @param user the User object
      * @param event the Event object
+     * @param status the booking status to filter by
      * @return an Optional containing the Booking if found, or empty if none exists
      */
     Optional<Booking> findByUserAndEventAndStatus(User user, Event event, Status status);
@@ -46,8 +49,13 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      *
      * @param eventId the UUID of the event
      * @param status the booking status to filter by
-     * @return the number of bookings to that event matching the status 
+     * @return the number of bookings for that event matching the status
      */
+    @Query("""
+    SELECT COUNT(b)
+    FROM Booking b
+    WHERE b.event.id = :eventId AND b.status = :status
+    """)
     int countByEventIdAndStatus(UUID eventId, Status status);
 
     /**
@@ -55,7 +63,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      *
      * @param userId the UUID of the user
      * @param status the booking status to filter by
-     * @return the number of bookings to that user matching the status
+     * @return the number of bookings for that user matching the status
      */
     int countByUserIdAndStatus(UUID userId, Status status);
 
@@ -65,4 +73,19 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * @param id the ID of the event
      * @return a collection of bookings for the specified event
      */
-    Collection<Booking> findByEventId(UUID id);}
+    Collection<Booking> findByEventId(UUID id);
+
+    /**
+     * Marks a booking as CANCELLED if it is not already cancelled.
+     *
+     * @param id the UUID of the booking to cancel
+     */
+    @Modifying(clearAutomatically = true)
+    @Transactional
+    @Query("""
+    UPDATE Booking b
+    SET b.status = 'CANCELLED'
+    WHERE b.id = :id AND b.status != 'CANCELLED'
+    """)
+    void deleteBooking(UUID id);
+}

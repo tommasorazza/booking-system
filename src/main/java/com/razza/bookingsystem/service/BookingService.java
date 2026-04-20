@@ -9,6 +9,7 @@ import com.razza.bookingsystem.exception.*;
 import com.razza.bookingsystem.mapper.BookingMapper;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
+import com.razza.bookingsystem.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final EventRepository eventRepository;
     private final BookingMapper bookingMapper;
+    private final UserRepository userRepository;
 
     /**
      * Creates a new booking for a given event.
@@ -66,7 +68,7 @@ public class BookingService {
     @Transactional
     public BookingDto createBooking(UUID eventId, User user, User currentUser, Tenant tenant, int quantity, Boolean isAdmin) {
 
-        Event event = eventRepository.findById(eventId)
+        Event event = eventRepository.findByIdAndTenant(eventId, currentUser.getTenant())
                 .orElseThrow(() -> new ResourceNotFoundException("Event", eventId));
 
         if(event.getDate().isBefore(OffsetDateTime.now())){
@@ -112,7 +114,6 @@ public class BookingService {
         }
 
         Booking booking = Booking.builder()
-                .id(UUID.randomUUID())
                 .user(currentUser)
                 .event(event)
                 .tenant(event.getTenant())
@@ -200,6 +201,7 @@ public class BookingService {
      * @throws AccessDeniedException if the user is not allowed to cancel the booking
      * @throws BookingAlreadyCancelledException if the booking is already canceled
      */
+    @Transactional
     public void cancelBooking(UUID bookingId, User currentUser, Tenant tenant, boolean isAdmin) {
 
         Booking booking = bookingRepository.findByIdAndTenant(bookingId, tenant)
@@ -219,15 +221,11 @@ public class BookingService {
             throw new ResourceNotFoundException("booking", bookingId);
         }
 
-        if (booking.getStatus() == CANCELLED) {
-            throw new BookingAlreadyCancelledException();
-        }
+        bookingRepository.deleteBooking(bookingId);
 
         event.setAvailableCapacity(event.getAvailableCapacity() + booking.getQuantity());
         eventRepository.save(event);
 
-        booking.setStatus(CANCELLED);
-        bookingRepository.save(booking);
     }
 
     /**
@@ -252,7 +250,7 @@ public class BookingService {
             userId = currentUserId;
         }
 
-        if (bookingRepository.findByUserIdAndTenant(userId, tenant).isEmpty()) {
+        if(userRepository.findByIdAndTenantId(userId, tenant.getId()).isEmpty()){
             throw new ResourceNotFoundException("user", userId);
         }
 

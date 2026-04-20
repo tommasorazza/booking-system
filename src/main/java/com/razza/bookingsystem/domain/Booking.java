@@ -53,6 +53,10 @@ public class Booking {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    /** version field to guarantee thread safety */
+    @Version
+    private Long version;
+
     /** Timestamp when the booking was created. */
     private OffsetDateTime createdAt;
 }
