@@ -1,5 +1,6 @@
 package com.razza.bookingsystem.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -97,6 +98,34 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PastEventException.class)
     public ResponseEntity<Map<String, Object>> handleDate(PastEventException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /**
+     * Handles data integrity violation exceptions.
+     * Returns 409 CONFLICT if it's a duplicate booking exception,
+     * Otherwise 500 INTERNAL SERVER ERROR.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+
+        if (isUniqueBookingConstraint(ex)) {
+            return buildResponse(HttpStatus.CONFLICT, "Booking already exists for this user and event");
+        }
+
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "database error");
+    }
+
+    /**
+     * Helper method to determine if an exception is due to same user booking the same event twice.
+    */
+    private boolean isUniqueBookingConstraint(DataIntegrityViolationException ex) {
+        Throwable cause = ex.getRootCause();
+
+        if (cause != null && cause.getMessage() != null) {
+            return cause.getMessage().contains("booking_user_event_unique");
+        }
+    
+        return false;
     }
 
     /**

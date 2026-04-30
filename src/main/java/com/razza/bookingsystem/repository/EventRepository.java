@@ -51,6 +51,24 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     int decreaseCapacity(UUID id, int quantity);
 
     /**
+     * Atomically increases the available capacity of an event.
+     *
+     * This operation is performed as a single database update to ensure
+     * thread safety under concurrent booking requests.
+     *
+     * @param id the ID of the event whose capacity should be increased
+     * @param quantity the number of seats to add to available capacity
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = false)
+    @Transactional
+    @Query("""
+    UPDATE Event e
+    SET e.availableCapacity = e.availableCapacity + :quantity
+    WHERE e.id = :id
+    """)
+    void increaseCapacity(UUID id, int quantity);
+
+    /**
      * Finds an event by its ID within a specific tenant, acquiring a pessimistic write lock.
      *
      * The pessimistic lock prevents concurrent modifications to the event row

@@ -93,6 +93,7 @@ public class BookingService {
 
         var existingBooking = bookingRepository.findByUserAndEventAndStatus(currentUser, event, CONFIRMED);
         var existingCancelledBooking = bookingRepository.findByUserAndEventAndStatus(currentUser, event, CANCELLED);
+        // --- Concurrency setup ---
 
         if (existingBooking.isPresent()) {
             throw new BookingAlreadyPresentException(existingBooking.get().getQuantity());
@@ -213,7 +214,7 @@ public class BookingService {
             throw new PastEventException(event.getDate());
         }
 
-        if (!isAdmin && !booking.getUser().equals(currentUser)) {
+        if (!isAdmin && !booking.getUser().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("Access denied");
         }
 
@@ -221,10 +222,8 @@ public class BookingService {
             throw new ResourceNotFoundException("booking", bookingId);
         }
 
+        eventRepository.increaseCapacity(event.getId(), booking.getQuantity());
         bookingRepository.deleteBooking(bookingId);
-
-        event.setAvailableCapacity(event.getAvailableCapacity() + booking.getQuantity());
-        eventRepository.save(event);
 
     }
 

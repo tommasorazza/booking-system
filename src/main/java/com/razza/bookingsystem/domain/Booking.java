@@ -19,7 +19,7 @@ import java.util.UUID;
 @Builder
 @Table(
         name = "booking",
-        uniqueConstraints = {@UniqueConstraint(columnNames = {"userId", "event_id"})},
+        uniqueConstraints = {@UniqueConstraint(name = "booking_user_event_unique", columnNames = {"userId", "event_id"})},
         indexes = { @Index(name = "booking_user_index", columnList = "user_id"),
                 @Index(name = "booking_event_index", columnList = "event_id"),
                 @Index(name = "booking_tenant_index", columnList = "tenantId")}

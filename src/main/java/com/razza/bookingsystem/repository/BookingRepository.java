@@ -76,7 +76,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     Collection<Booking> findByEventId(UUID id);
 
     /**
-     * Marks a booking as CANCELLED if it is not already cancelled.
+     * Marks a booking as CANCELLED if it is not already canceled.
      *
      * @param id the UUID of the booking to cancel
      */
