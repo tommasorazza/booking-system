@@ -1,8 +1,10 @@
 package com.razza.bookingsystem.config;
 
 import com.razza.bookingsystem.security.JwtAuthenticationFilter;
+import com.razza.bookingsystem.security.RateLimitingFilter;
 import com.razza.bookingsystem.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -33,6 +35,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitingFilter rateLimitingFilter;
     private final CustomUserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
 
@@ -76,8 +79,9 @@ public class SecurityConfig {
                 // Set the authentication provider (DAO + password encoder)
                 .authenticationProvider(authenticationProvider())
                 // Add JWT filter before the default username/password authentication filter
-                .addFilterBefore(jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
+
 
         return http.build();
     }
@@ -115,6 +119,13 @@ public class SecurityConfig {
             org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration config
     ) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public FilterRegistrationBean<RateLimitingFilter> rateLimitingFilterRegistration(RateLimitingFilter filter) {
+        FilterRegistrationBean<RateLimitingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
 }

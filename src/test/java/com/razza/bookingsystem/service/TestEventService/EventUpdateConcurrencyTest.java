@@ -1,9 +1,11 @@
-package com.razza.bookingsystem.service;
+package com.razza.bookingsystem.service.TestEventService;
 
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.dto.EventRequestDto;
 import com.razza.bookingsystem.exception.EventDecreaseException;
 import com.razza.bookingsystem.repository.*;
+import com.razza.bookingsystem.service.BookingService;
+import com.razza.bookingsystem.service.EventService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

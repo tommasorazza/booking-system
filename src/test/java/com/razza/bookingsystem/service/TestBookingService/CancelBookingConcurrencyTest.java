@@ -1,10 +1,11 @@
-package com.razza.bookingsystem.service;
+package com.razza.bookingsystem.service.TestBookingService;
 
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
 import com.razza.bookingsystem.repository.TenantRepository;
 import com.razza.bookingsystem.repository.UserRepository;
+import com.razza.bookingsystem.service.BookingService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
