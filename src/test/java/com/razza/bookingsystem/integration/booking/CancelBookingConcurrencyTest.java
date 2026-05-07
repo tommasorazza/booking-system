@@ -1,4 +1,4 @@
-package com.razza.bookingsystem.service.TestBookingService;
+package com.razza.bookingsystem.integration.booking;
 
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.repository.BookingRepository;
@@ -18,27 +18,31 @@ import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests concurrent modifications of a booking quantity by multiple admins.
+ * Tests that concurrent cancellation attempts on the same booking are handled correctly.
  *
- * Scenario:
- * - A booking initially has quantity = 2
- * - Event has sufficient capacity
- * - 10 admins attempt to modify the booking concurrently
+ * Setup:
+ * - Creates a tenant, an event with 18 available seats out of 20 total
+ * - Creates 10 admin users belonging to the same tenant
+ * - Creates a confirmed booking of 2 seats for the first admin user
+ *
+ * Execution:
+ * - Spawns 10 threads, each attempting to cancel the same booking simultaneously
+ * - All threads are held at a latch and released at the same time to maximize contention
  *
  * Expected outcome:
- * - Multiple modifications may succeed due to optimistic locking retries
- * - Final booking quantity must be one of the requested values
- * - Event available capacity must remain consistent:
- *   totalCapacity - finalBookingQuantity
+ * - Exactly 1 cancellation succeeds
+ * - The remaining 9 attempts fail
+ * - Event available capacity is restored by exactly 2 (the booked quantity)
+ * - The booking status is CANCELLED
  *
- * This ensures that concurrent modifications do not corrupt capacity.
+ * @throws Exception if thread coordination fails
  */
 @SpringBootTest
 @ActiveProfiles("test")
-class ModifyBookingConcurrencyTest {
+class CancelBookingConcurrencyTest {
 
     @Autowired
     private BookingService bookingService;
@@ -56,20 +60,22 @@ class ModifyBookingConcurrencyTest {
     private TenantRepository tenantRepository;
 
     @Test
-    void modify_booking_concurrently_should_keep_capacity_consistent() throws Exception {
+    void cancel_same_booking_concurrently_should_restore_capacity_once() throws Exception {
 
         Tenant tenant = new Tenant();
         tenant = tenantRepository.save(tenant);
 
         Event event = Event.builder()
-                .name("Modify Concurrency Test")
+                .name("Concurrency Cancel Test")
                 .date(OffsetDateTime.now().plusDays(1))
-                .availableCapacity(98)
-                .totalCapacity(100)
+                .availableCapacity(18)
+                .totalCapacity(20)
                 .tenant(tenant)
                 .build();
 
         event = eventRepository.save(event);
+
+        int initialCapacity = event.getAvailableCapacity();
 
         List<User> admins = new ArrayList<User>();
 
@@ -108,7 +114,6 @@ class ModifyBookingConcurrencyTest {
         for (int i = 0; i < admins.size(); i++) {
 
             final User admin = admins.get(i);
-            final int newQuantity = i + 1;
 
             Runnable task = new Runnable() {
                 @Override
@@ -116,11 +121,10 @@ class ModifyBookingConcurrencyTest {
                     try {
                         startLatch.await();
 
-                        bookingService.modifyQuantity(
+                        bookingService.cancelBooking(
                                 bookingId,
                                 admin,
                                 admin.getTenant(),
-                                newQuantity,
                                 true
                         );
 
@@ -139,29 +143,24 @@ class ModifyBookingConcurrencyTest {
 
         startLatch.countDown();
         doneLatch.await();
+
         executor.shutdown();
 
-        Event updatedEvent = eventRepository.findById(event.getId()).orElseThrow();
-        Booking updatedBooking = bookingRepository.findById(bookingId).orElseThrow();
-
-        int finalQuantity = updatedBooking.getQuantity();
+        Event updated = eventRepository.findById(event.getId()).orElseThrow();
 
         System.out.println("SUCCESS: " + success.get());
         System.out.println("FAIL: " + fail.get());
-        System.out.println("FINAL QUANTITY: " + finalQuantity);
 
-        /**
-         * The final quantity must be between 1 and 10
-         */
-        boolean validQuantity = finalQuantity >= 1 && finalQuantity <= 10;
-        assertEquals(true, validQuantity, "Final quantity must be within expected range");
-
-        int expectedAvailable = updatedEvent.getTotalCapacity() - finalQuantity;
+        assertEquals(1, success.get(), "Only one cancellation should succeed");
+        assertEquals(9, fail.get(), "All other cancellations should fail");
 
         assertEquals(
-                expectedAvailable,
-                updatedEvent.getAvailableCapacity(),
-                "Event capacity must remain consistent"
+                initialCapacity + 2,
+                updated.getAvailableCapacity(),
+                "Capacity must be restored exactly once"
         );
+
+        Booking updatedBooking = bookingRepository.findById(bookingId).orElseThrow();
+        assertEquals(Status.CANCELLED, updatedBooking.getStatus());
     }
 }

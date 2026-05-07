@@ -1,4 +1,4 @@
-package com.razza.bookingsystem.service.TestBookingService;
+package com.razza.bookingsystem.integration.booking;
 
 import com.razza.bookingsystem.domain.Event;
 import com.razza.bookingsystem.domain.Tenant;

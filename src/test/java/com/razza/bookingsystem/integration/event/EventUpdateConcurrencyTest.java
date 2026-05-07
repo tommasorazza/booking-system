@@ -1,4 +1,4 @@
-package com.razza.bookingsystem.service.TestEventService;
+package com.razza.bookingsystem.integration.event;
 
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.dto.EventRequestDto;
