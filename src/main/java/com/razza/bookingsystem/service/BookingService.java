@@ -151,7 +151,7 @@ public class BookingService {
     @Transactional
     public BookingDto modifyQuantity(UUID bookingId, User user, Tenant userTenant, int quantity, Boolean isAdmin) {
 
-        Booking booking = bookingRepository.findById(bookingId)
+        Booking booking = bookingRepository.findByIdAndTenant(bookingId, userTenant)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId));
 
         Event event = booking.getEvent();
@@ -207,6 +207,10 @@ public class BookingService {
 
         Booking booking = bookingRepository.findByIdAndTenant(bookingId, tenant)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId));
+
+        if(booking.getStatus().equals(CANCELLED)){
+            throw new IllegalStateException("booking is already canceled");
+        }
 
         Event event = booking.getEvent();
 

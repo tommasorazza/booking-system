@@ -24,6 +24,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -95,6 +96,7 @@ class AuthServiceTest {
      * Verifies that a valid signup request returns a non-null DTO with the
      * correct email and role.
      */
+    @Transactional
     @Test
     void signup_success_returnsUserDto() {
         when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
@@ -115,6 +117,7 @@ class AuthServiceTest {
      * persisted. Uses an ArgumentCaptor to inspect the User object actually
      * passed to the repository save call.
      */
+    @Transactional
     @Test
     void signup_encodesPasswordBeforeSaving() {
         when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
@@ -135,6 +138,7 @@ class AuthServiceTest {
      * registered user, regardless of any external input. Uses an
      * ArgumentCaptor to inspect the User object passed to the repository.
      */
+    @Transactional
     @Test
     void signup_assignsUserRoleAutomatically() {
         when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
@@ -155,6 +159,7 @@ class AuthServiceTest {
      * persisting. Uses an ArgumentCaptor to inspect the User object passed
      * to the repository.
      */
+    @Transactional
     @Test
     void signup_assignsTenantToUser() {
         when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
@@ -175,6 +180,7 @@ class AuthServiceTest {
      * save is attempted — when the email address is already registered within
      * the same tenant. The exception message must contain the duplicate email.
      */
+    @Transactional
     @Test
     void signup_throwsUserAlreadyExistsException_whenEmailAlreadyRegisteredInTenant() {
         when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
@@ -193,6 +199,7 @@ class AuthServiceTest {
      * save is attempted — when the supplied tenant name does not match any
      * existing tenant. The exception message must reference "tenant".
      */
+    @Transactional
     @Test
     void signup_throwsResourceNotFoundException_whenTenantDoesNotExist() {
         when(tenantRepository.findByName("unknown")).thenReturn(Optional.empty());
@@ -209,6 +216,7 @@ class AuthServiceTest {
      * tenants without triggering a {@link UserAlreadyExistsException}.
      * Email uniqueness is scoped per tenant, not globally.
      */
+    @Transactional
     @Test
     void signup_sameEmail_differentTenant_doesNotThrow() {
         Tenant otherTenant = Tenant.builder().id(UUID.randomUUID()).name("other").build();
@@ -233,6 +241,7 @@ class AuthServiceTest {
      * Verifies that a successful authentication returns the JWT token
      * produced by {@link JwtService}.
      */
+    @Transactional
     @Test
     void login_success_returnsJwtToken() {
         CustomUserDetails userDetails = new CustomUserDetails(
@@ -256,6 +265,7 @@ class AuthServiceTest {
      * the {@link AuthenticationManager}. This ensures credentials are always
      * resolved within the correct tenant context.
      */
+    @Transactional
     @Test
     void login_buildsTenantScopedUsernameForAuthentication() {
         CustomUserDetails userDetails = new CustomUserDetails(
@@ -281,6 +291,7 @@ class AuthServiceTest {
      * when the {@link AuthenticationManager} rejects the credentials, and that
      * token generation is never attempted in that case.
      */
+    @Transactional
     @Test
     void login_throwsBadCredentialsException_whenPasswordIsWrong() {
         when(authenticationManager.authenticate(any()))
@@ -297,6 +308,7 @@ class AuthServiceTest {
      * the {@link CustomUserDetails} principal extracted from the authenticated
      * token, and that the returned token value is passed through to the caller.
      */
+    @Transactional
     @Test
     void login_delegatesTokenGenerationToJwtService() {
         CustomUserDetails userDetails = new CustomUserDetails(

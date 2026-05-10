@@ -1,15 +1,18 @@
-package com.razza.bookingsystem.integration.booking;
+package com.razza.bookingsystem.concurrency.booking;
 
 import com.razza.bookingsystem.domain.Event;
 import com.razza.bookingsystem.domain.Tenant;
 import com.razza.bookingsystem.domain.User;
+import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
 import com.razza.bookingsystem.repository.TenantRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.service.BookingService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -34,11 +37,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * concurrent access and prevents overbooking.
  */
 @SpringBootTest
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @org.springframework.test.context.ActiveProfiles("test")
 class BookingConcurrencyTest {
 
     @Autowired
     private BookingService bookingService;
+
+    @Autowired
+    private BookingRepository bookingRepository;
 
     @Autowired
     private EventRepository eventRepository;
@@ -48,6 +55,14 @@ class BookingConcurrencyTest {
 
     @Autowired
     private TenantRepository tenantRepository;
+
+    @AfterEach
+    void cleanup() {
+        bookingRepository.deleteAll();
+        eventRepository.deleteAll();
+        userRepository.deleteAll();
+        tenantRepository.deleteAll();
+    }
     
     @Test
     void only_one_booking_should_succeed_when_one_seat_left() throws Exception {

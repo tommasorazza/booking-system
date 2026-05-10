@@ -1,4 +1,4 @@
-package com.razza.bookingsystem.integration.booking;
+package com.razza.bookingsystem.concurrency.booking;
 
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.repository.BookingRepository;
@@ -6,9 +6,11 @@ import com.razza.bookingsystem.repository.EventRepository;
 import com.razza.bookingsystem.repository.TenantRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.service.BookingService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.OffsetDateTime;
@@ -36,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  *
  * This ensures that concurrent modifications do not corrupt capacity.
  */
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @SpringBootTest
 @ActiveProfiles("test")
 class ModifyBookingConcurrencyTest {
@@ -54,6 +57,14 @@ class ModifyBookingConcurrencyTest {
 
     @Autowired
     private TenantRepository tenantRepository;
+
+    @AfterEach
+    void cleanup() {
+        bookingRepository.deleteAll();
+        eventRepository.deleteAll();
+        userRepository.deleteAll();
+        tenantRepository.deleteAll();
+    }
 
     @Test
     void modify_booking_concurrently_should_keep_capacity_consistent() throws Exception {

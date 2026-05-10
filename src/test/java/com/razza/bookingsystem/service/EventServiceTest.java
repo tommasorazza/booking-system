@@ -24,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -116,6 +117,7 @@ class EventServiceTest {
      * Verifies that a valid request produces a non-null response DTO
      * with the expected name and capacity values.
      */
+    @Transactional
     @Test
     void createEvent_success_returnsEventResponseDto() {
         when(eventMapper.toEntity(requestDto)).thenReturn(event);
@@ -133,6 +135,7 @@ class EventServiceTest {
      * Verifies that the service assigns the supplied tenant to the event
      * before persisting it.
      */
+    @Transactional
     @Test
     void createEvent_setsTenantOnEvent() {
         Event eventWithoutTenant = Event.builder()
@@ -157,6 +160,7 @@ class EventServiceTest {
      * Verifies that the service initializes the event status to
      * {@link Status#CONFIRMED} regardless of what the mapper returns.
      */
+    @Transactional
     @Test
     void createEvent_setsStatusToConfirmed() {
         event.setStatus(null);
@@ -173,6 +177,7 @@ class EventServiceTest {
      * Verifies that the service sets availableCapacity equal to totalCapacity
      * on creation, even when the mapper did not populate that field.
      */
+    @Transactional
     @Test
     void createEvent_setsAvailableCapacityEqualToTotalCapacity() {
         event.setAvailableCapacity(0);
@@ -189,6 +194,7 @@ class EventServiceTest {
      * Verifies that a {@link PastEventException} is thrown when the event
      * date lies in the past, and that the repository save is never called.
      */
+    @Transactional
     @Test
     void createEvent_throwsPastEventException_whenDateIsInThePast() {
         Event pastEvent = Event.builder()
@@ -208,6 +214,7 @@ class EventServiceTest {
      * requested capacity exceeds the allowed maximum of 10 000, and that
      * no save is attempted.
      */
+    @Transactional
     @Test
     void createEvent_throwsIllegalArgumentException_whenCapacityExceeds10000() {
         Event oversizedEvent = Event.builder()
@@ -228,6 +235,7 @@ class EventServiceTest {
      * Verifies that a capacity of exactly 10 000 is accepted as a valid
      * boundary value (no exception thrown, DTO returned successfully).
      */
+    @Transactional
     @Test
     void createEvent_allowsCapacityExactly10000() {
         Event maxEvent = Event.builder()
@@ -254,6 +262,7 @@ class EventServiceTest {
      * Verifies that a valid ID belonging to the given tenant returns the
      * expected response DTO.
      */
+    @Transactional
     @Test
     void getEventById_success_returnsEventResponseDto() {
         when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
@@ -269,6 +278,7 @@ class EventServiceTest {
      * Verifies that a {@link ResourceNotFoundException} containing the event ID
      * is thrown when no event is found for the given ID and tenant.
      */
+    @Transactional
     @Test
     void getEventById_throwsResourceNotFoundException_whenEventNotFound() {
         when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.empty());
@@ -282,6 +292,7 @@ class EventServiceTest {
      * Verifies that the repository lookup is always scoped to the provided
      * tenant, preventing cross-tenant data leakage.
      */
+    @Transactional
     @Test
     void getEventById_scopesQueryByTenant() {
         when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
@@ -296,6 +307,7 @@ class EventServiceTest {
     /**
      * Verifies that a valid update request returns a non-null response DTO.
      */
+    @Transactional
     @Test
     void updateEvent_success_returnsUpdatedDto() {
         when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
@@ -311,6 +323,7 @@ class EventServiceTest {
      * Verifies that the name, description, and location fields of the event
      * entity are overwritten with the values from the request DTO.
      */
+    @Transactional
     @Test
     void updateEvent_updatesNameDescriptionLocationDate() {
         EventRequestDto updatedDto = EventRequestDto.builder()
@@ -350,6 +363,7 @@ class EventServiceTest {
      *
      * Example: 100 total, 60 available (40 booked) -> 150 total, 110 available.
      */
+    @Transactional
     @Test
     void updateEvent_increasingCapacity_updatesAvailableCapacityPreservingBookedSeats() {
         event.setTotalCapacity(100);
@@ -375,6 +389,7 @@ class EventServiceTest {
      * Verifies that decreasing the total capacity is permitted when there are
      * no confirmed bookings, and that both capacity fields are updated accordingly.
      */
+    @Transactional
     @Test
     void updateEvent_decreasingCapacity_withNoActiveBookings_succeeds() {
         event.setTotalCapacity(200);
@@ -403,6 +418,7 @@ class EventServiceTest {
      * while confirmed bookings exist. The exception message must include the
      * number of active bookings.
      */
+    @Transactional
     @Test
     void updateEvent_decreasingCapacity_throwsEventDecreaseException_whenActiveBookingsExist() {
         event.setTotalCapacity(200);
@@ -427,6 +443,7 @@ class EventServiceTest {
      * Verifies that a {@link PastEventException} is thrown — and no save
      * occurs — when the new date supplied in the update request lies in the past.
      */
+    @Transactional
     @Test
     void updateEvent_throwsPastEventException_whenNewDateIsInThePast() {
         EventRequestDto pastDateDto = EventRequestDto.builder()
@@ -447,6 +464,7 @@ class EventServiceTest {
      * Verifies that an {@link IllegalArgumentException} is thrown — and no
      * save occurs — when the new capacity exceeds 10 000.
      */
+    @Transactional
     @Test
     void updateEvent_throwsIllegalArgumentException_whenNewCapacityExceeds10000() {
         EventRequestDto oversizedDto = EventRequestDto.builder()
@@ -469,6 +487,7 @@ class EventServiceTest {
      * the event date is changed. Each call should pass the user's email address,
      * the new date, and the (unchanged) location.
      */
+    @Transactional
     @Test
     void updateEvent_sendsEmailNotifications_whenDateChanges() {
         OffsetDateTime newDate = OffsetDateTime.now().plusDays(30);
@@ -501,6 +520,7 @@ class EventServiceTest {
      * the event location is changed. Each call should pass the user's email
      * address, the (unchanged) date, and the new location.
      */
+    @Transactional
     @Test
     void updateEvent_sendsEmailNotifications_whenLocationChanges() {
         OffsetDateTime originalDate = event.getDate();
@@ -529,6 +549,7 @@ class EventServiceTest {
      * repository is not queried — when neither the date nor the location
      * changes during an update.
      */
+    @Transactional
     @Test
     void updateEvent_doesNotSendEmail_whenNeitherDateNorLocationChanges() {
         EventRequestDto noChangeDto = EventRequestDto.builder()
@@ -553,6 +574,7 @@ class EventServiceTest {
      * status to {@link Status#CANCELLED} and saving the updated entity,
      * rather than removing the record from the database.
      */
+    @Transactional
     @Test
     void deleteEvent_success_softDeletesBySettingStatusToCancelled() {
         when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
@@ -568,6 +590,7 @@ class EventServiceTest {
      * Verifies that a {@link ResourceNotFoundException} is thrown — and no
      * save occurs — when the event to delete is not found for the given tenant.
      */
+    @Transactional
     @Test
     void deleteEvent_throwsResourceNotFoundException_whenEventNotFound() {
         when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.empty());
@@ -584,6 +607,7 @@ class EventServiceTest {
      * occurs — when confirmed bookings exist for the event. The exception
      * message must include the active booking count.
      */
+    @Transactional
     @Test
     void deleteEvent_throwsEventDeleteException_whenActiveBookingsExist() {
         when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
@@ -601,6 +625,7 @@ class EventServiceTest {
      * occurs — when an attempt is made to delete an event whose date has
      * already passed.
      */
+    @Transactional
     @Test
     void deleteEvent_throwsPastEventException_whenEventIsInThePast() {
         event.setDate(OffsetDateTime.now().minusDays(1));
@@ -618,6 +643,7 @@ class EventServiceTest {
      * Verifies that the service returns a correctly mapped page of
      * {@link EventResponseDto} objects when events exist for the tenant.
      */
+    @Transactional
     @Test
     void getAllEvents_returnsPageOfEventResponseDtos() {
         Pageable pageable = PageRequest.of(0, 10); //first ten elements of page 0
@@ -636,6 +662,7 @@ class EventServiceTest {
      * Verifies that an empty page is returned without errors when no events
      * exist for the tenant.
      */
+    @Transactional
     @Test
     void getAllEvents_returnsEmptyPage_whenNoEventsExist() {
         Pageable pageable = PageRequest.of(0, 10);
@@ -650,6 +677,7 @@ class EventServiceTest {
      * Verifies that the mapper is invoked once per event in the page, and
      * that each mapped DTO appears in the result in the correct order.
      */
+    @Transactional
     @Test
     void getAllEvents_mapsEachEventToDto() {
         Event event2 = Event.builder()

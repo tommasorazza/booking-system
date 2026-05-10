@@ -1,4 +1,4 @@
-package com.razza.bookingsystem.integration.booking;
+package com.razza.bookingsystem.concurrency.booking;
 
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.repository.BookingRepository;
@@ -6,9 +6,11 @@ import com.razza.bookingsystem.repository.EventRepository;
 import com.razza.bookingsystem.repository.TenantRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.service.BookingService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.OffsetDateTime;
@@ -40,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * @throws Exception if thread coordination fails
  */
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @SpringBootTest
 @ActiveProfiles("test")
 class CancelBookingConcurrencyTest {
@@ -58,6 +61,14 @@ class CancelBookingConcurrencyTest {
 
     @Autowired
     private TenantRepository tenantRepository;
+
+    @AfterEach
+    void cleanup() {
+        bookingRepository.deleteAll();
+        eventRepository.deleteAll();
+        userRepository.deleteAll();
+        tenantRepository.deleteAll();
+    }
 
     @Test
     void cancel_same_booking_concurrently_should_restore_capacity_once() throws Exception {
@@ -150,6 +161,7 @@ class CancelBookingConcurrencyTest {
 
         System.out.println("SUCCESS: " + success.get());
         System.out.println("FAIL: " + fail.get());
+        System.out.println("available capacity: " + event.getAvailableCapacity());
 
         assertEquals(1, success.get(), "Only one cancellation should succeed");
         assertEquals(9, fail.get(), "All other cancellations should fail");

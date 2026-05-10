@@ -2,12 +2,15 @@ package com.razza.bookingsystem.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.razza.bookingsystem.dto.LoginRequest;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -25,8 +28,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * A fresh JWT for Alice is obtained before each test via a real login request.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class RateLimitingAuthenticatedIntegrationTest {
 
     @Autowired
@@ -69,6 +74,7 @@ class RateLimitingAuthenticatedIntegrationTest {
      * The first 100 requests drain the bucket. The 101st must be
      * rate-limited regardless of the endpoint responding.
      */
+    @Transactional
     @Test
     void authenticatedEndpoint_shouldReturn429AfterHundredRequests() throws Exception {
         for (int i = 0; i < 100; i++) {
@@ -89,6 +95,7 @@ class RateLimitingAuthenticatedIntegrationTest {
      * Each user is keyed by their own UUID inside RateLimitingFilter,
      * so draining one user's bucket never touches another user's.
      */
+    @Transactional
     @Test
     void twoUsers_shouldHaveIndependentBuckets() throws Exception {
         LoginRequest arianaLogin = LoginRequest.builder()

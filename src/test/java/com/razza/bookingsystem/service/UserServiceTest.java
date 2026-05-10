@@ -10,6 +10,7 @@ import com.razza.bookingsystem.exception.UserDeleteException;
 import com.razza.bookingsystem.mapper.UserMapper;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -72,6 +73,7 @@ class UserServiceTest {
      * Given a valid user in the tenant, makeAdmin should return a UserDto
      * reflecting the updated ADMIN role and the original email address.
      */
+    @Transactional
     @Test
     void makeAdmin_success_returnsUpdatedUserDto() {
         UserDto adminDto = UserDto.builder()
@@ -95,6 +97,7 @@ class UserServiceTest {
     /**
      * makeAdmin should mutate the user entity's role to ADMIN before saving.
      */
+    @Transactional
     @Test
     void makeAdmin_updatesUserRoleToAdmin() {
         when(userRepository.findByIdAndTenantId(userId, tenant.getId()))
@@ -111,6 +114,7 @@ class UserServiceTest {
      * makeAdmin should throw ResourceNotFoundException when no user with the
      * given ID exists within the tenant, and must not attempt to save anything.
      */
+    @Transactional
     @Test
     void makeAdmin_throwsResourceNotFoundException_whenUserNotFoundInTenant() {
         when(userRepository.findByIdAndTenantId(userId, tenant.getId()))
@@ -127,6 +131,7 @@ class UserServiceTest {
      * makeAdmin should throw ResourceNotFoundException when the user exists but
      * belongs to a different tenant, enforcing tenant isolation.
      */
+    @Transactional
     @Test
     void makeAdmin_userInDifferentTenant_throwsResourceNotFoundException() {
         Tenant otherTenant = Tenant.builder().id(UUID.randomUUID()).name("other").build();
@@ -140,6 +145,7 @@ class UserServiceTest {
     /**
      * deleteUser should successfully delete a user who has no confirmed bookings.
      */
+    @Transactional
     @Test
     void deleteUser_success_deletesUserWithNoActiveBookings() {
         when(userRepository.findByIdAndTenantId(userId, tenant.getId()))
@@ -156,6 +162,7 @@ class UserServiceTest {
      * deleteUser should throw ResourceNotFoundException when no user with the
      * given ID exists within the tenant, and must not attempt to delete anything.
      */
+    @Transactional
     @Test
     void deleteUser_throwsResourceNotFoundException_whenUserNotFoundInTenant() {
         when(userRepository.findByIdAndTenantId(userId, tenant.getId()))
@@ -172,6 +179,7 @@ class UserServiceTest {
      * deleteUser should throw UserDeleteException when the user has one or more
      * confirmed bookings, and the exception message should include the booking count.
      */
+    @Transactional
     @Test
     void deleteUser_throwsUserDeleteException_whenUserHasConfirmedBookings() {
         when(userRepository.findByIdAndTenantId(userId, tenant.getId()))
@@ -191,6 +199,7 @@ class UserServiceTest {
      * deleteUser should only check for CONFIRMED bookings; canceled or other
      * statuses must not influence the deletion.
      */
+    @Transactional
     @Test
     void deleteUser_checksOnlyConfirmedBookings() {
         when(userRepository.findByIdAndTenantId(userId, tenant.getId()))
@@ -208,6 +217,7 @@ class UserServiceTest {
      * deleteUser should throw ResourceNotFoundException when the user exists but
      * belongs to a different tenant, enforcing tenant isolation.
      */
+    @Transactional
     @Test
     void deleteUser_userInDifferentTenant_throwsResourceNotFoundException() {
         Tenant otherTenant = Tenant.builder().id(UUID.randomUUID()).name("other").build();

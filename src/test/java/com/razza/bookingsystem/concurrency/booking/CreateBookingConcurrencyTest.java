@@ -1,4 +1,4 @@
-package com.razza.bookingsystem.integration.booking;
+package com.razza.bookingsystem.concurrency.booking;
 
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.exception.BookingAlreadyPresentException;
@@ -7,9 +7,11 @@ import com.razza.bookingsystem.repository.EventRepository;
 import com.razza.bookingsystem.repository.TenantRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.service.BookingService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.OffsetDateTime;
@@ -36,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Expected behavior:
  * - Only one booking should succeed due to the unique constraint and business validation.
  * - All other concurrent attempts should fail.
- * - Either a BookingAlreadyPresentException or a DataIntegrityViolationException may occur.
+ * - BookingAlreadyPresentException will occur.
  *
  * Assertions:
  * - Exactly one successful booking creation.
@@ -47,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * @throws Exception if thread synchronization or execution fails
  */
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @SpringBootTest
 @ActiveProfiles("test")
 class CreateBookingConcurrencyTest {
@@ -65,6 +68,14 @@ class CreateBookingConcurrencyTest {
 
     @Autowired
     private TenantRepository tenantRepository;
+
+    @AfterEach
+    void cleanup() {
+        bookingRepository.deleteAll();
+        eventRepository.deleteAll();
+        userRepository.deleteAll();
+        tenantRepository.deleteAll();
+    }
 
     @Test
     void same_user_concurrent_booking_should_create_only_one_booking() throws Exception {
@@ -150,10 +161,7 @@ class CreateBookingConcurrencyTest {
         assertEquals(9, updatedEvent.getAvailableCapacity());
 
         for (Exception ex : exceptions) {
-            boolean valid =
-                    (ex instanceof BookingAlreadyPresentException) ||
-                            (ex.getCause() instanceof org.springframework.dao.DataIntegrityViolationException);
-
+            boolean valid = ex instanceof BookingAlreadyPresentException;
             assertTrue(valid, "Unexpected exception type: " + ex.getClass());
         }
     }

@@ -59,7 +59,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
      * @param id the ID of the event whose capacity should be increased
      * @param quantity the number of seats to add to available capacity
      */
-    @Modifying(flushAutomatically = true, clearAutomatically = false)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Transactional
     @Query("""
     UPDATE Event e

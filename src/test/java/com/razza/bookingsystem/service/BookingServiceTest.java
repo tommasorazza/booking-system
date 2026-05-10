@@ -16,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -94,8 +95,7 @@ class BookingServiceTest {
                 .date(OffsetDateTime.now().plusDays(7))
                 .availableCapacity(100)
                 .totalCapacity(100)
-                .tenant(tenant)                .id(UUID.randomUUID())
-
+                .tenant(tenant)
                 .status(CONFIRMED)
                 .build();
     }
@@ -109,6 +109,7 @@ class BookingServiceTest {
          * with sufficient capacity. The service should persist the booking and
          * return a mapped DTO.
          */
+        @Transactional
         @Test
         @DisplayName("createBooking_givenValidRequest_thenReturnBookingDto")
         void createBooking_givenValidRequest_thenReturnBookingDto() {
@@ -147,6 +148,7 @@ class BookingServiceTest {
          * When the event does not exist (or belongs to a different tenant),
          * the service must throw {@link ResourceNotFoundException}.
          */
+        @Transactional
         @Test
         @DisplayName("createBooking_givenUnknownEvent_thenThrowResourceNotFoundException")
         void createBooking_givenUnknownEvent_thenThrowResourceNotFoundException() {
@@ -166,6 +168,7 @@ class BookingServiceTest {
          * Attempting to book a quantity of zero must throw {@link QuantityException}
          * before any repository interaction.
          */
+        @Transactional
         @Test
         @DisplayName("createBooking_givenZeroQuantity_thenThrowQuantityException")
         void createBooking_givenZeroQuantity_thenThrowQuantityException() {
@@ -184,6 +187,7 @@ class BookingServiceTest {
          * When the event capacity is already full, {@code decreaseCapacity} returns 0
          * and the service must throw {@link NotEnoughSeatsException}.
          */
+        @Transactional
         @Test
         @DisplayName("createBooking_givenFullCapacity_thenThrowNotEnoughSeatsException")
         void createBooking_givenFullCapacity_thenThrowNotEnoughSeatsException() {
@@ -207,6 +211,7 @@ class BookingServiceTest {
          * A user who already has a CONFIRMED booking for the same event must
          * receive a {@link BookingAlreadyPresentException}.
          */
+        @Transactional
         @Test
         @DisplayName("createBooking_givenDuplicateBooking_thenThrowBookingAlreadyPresentException")
         void createBooking_givenDuplicateBooking_thenThrowBookingAlreadyPresentException() {
@@ -233,6 +238,7 @@ class BookingServiceTest {
         /**
          * Booking a past event must throw {@link PastEventException} immediately.
          */
+        @Transactional
         @Test
         @DisplayName("createBooking_givenPastEvent_thenThrowPastEventException")
         void createBooking_givenPastEvent_thenThrowPastEventException() {
@@ -261,6 +267,7 @@ class BookingServiceTest {
          * the service should reactivate (update) the existing canceled record instead
          * of inserting a duplicate.
          */
+        @Transactional
         @Test
         @DisplayName("createBooking_givenPreviouslyCancelledBooking_thenReactivateBooking")
         void createBooking_givenPreviouslyCancelledBooking_thenReactivateBooking() {
@@ -302,6 +309,7 @@ class BookingServiceTest {
          * Happy path: a user cancels their own booking. The service should
          * restore event capacity and call {@code deleteBooking} (soft-delete).
          */
+        @Transactional
         @Test
         @DisplayName("cancelBooking_givenOwnerRequest_thenCancelAndRestoreCapacity")
         void cancelBooking_givenOwnerRequest_thenCancelAndRestoreCapacity() {
@@ -328,6 +336,7 @@ class BookingServiceTest {
          * A non-admin user attempting to cancel another user's booking must
          * receive an {@link AccessDeniedException}.
          */
+        @Transactional
         @Test
         @DisplayName("cancelBooking_givenNonOwnerNonAdmin_thenThrowAccessDeniedException")
         void cancelBooking_givenNonOwnerNonAdmin_thenThrowAccessDeniedException() {
@@ -360,6 +369,7 @@ class BookingServiceTest {
         /**
          * An admin may cancel any booking within their tenant, regardless of ownership.
          */
+        @Transactional
         @Test
         @DisplayName("cancelBooking_givenAdminRequest_thenCancelSuccessfully")
         void cancelBooking_givenAdminRequest_thenCancelSuccessfully() {
@@ -393,6 +403,7 @@ class BookingServiceTest {
          * Increasing the booking quantity succeeds when the event still has
          * enough remaining seats.
          */
+        @Transactional
         @Test
         @DisplayName("modifyQuantity_givenValidIncrease_thenUpdateQuantity")
         void modifyQuantity_givenValidIncrease_thenUpdateQuantity() {
@@ -407,13 +418,14 @@ class BookingServiceTest {
                     .build();
 
             int newQuantity = 5;
+
             BookingDto expectedDto = BookingDto.builder()
                     .id(booking.getId())
                     .quantity(newQuantity)
                     .status(CONFIRMED)
                     .build();
 
-            when(bookingRepository.findById(booking.getId()))
+            when(bookingRepository.findByIdAndTenant(booking.getId(), tenant))
                     .thenReturn(Optional.of(booking));
             when(eventRepository.decreaseCapacity(futureEvent.getId(), newQuantity - 2))
                     .thenReturn(1);
@@ -431,6 +443,7 @@ class BookingServiceTest {
          * A non-admin user must not be able to modify another user's booking;
          * an {@link AccessDeniedException} is expected.
          */
+        @Transactional
         @Test
         @DisplayName("modifyQuantity_givenNonOwnerNonAdmin_thenThrowAccessDeniedException")
         void modifyQuantity_givenNonOwnerNonAdmin_thenThrowAccessDeniedException() {
@@ -450,7 +463,7 @@ class BookingServiceTest {
                     .status(CONFIRMED)
                     .build();
 
-            when(bookingRepository.findById(booking.getId()))
+            when(bookingRepository.findByIdAndTenant(booking.getId(), tenant))
                     .thenReturn(Optional.of(booking));
 
             assertThatThrownBy(() ->
@@ -463,6 +476,7 @@ class BookingServiceTest {
          * Requesting a quantity of zero must throw {@link QuantityException}
          * before any capacity check occurs.
          */
+        @Transactional
         @Test
         @DisplayName("modifyQuantity_givenZeroQuantity_thenThrowQuantityException")
         void modifyQuantity_givenZeroQuantity_thenThrowQuantityException() {
@@ -476,7 +490,7 @@ class BookingServiceTest {
                     .status(CONFIRMED)
                     .build();
 
-            when(bookingRepository.findById(booking.getId()))
+            when(bookingRepository.findByIdAndTenant(booking.getId(), tenant))
                     .thenReturn(Optional.of(booking));
 
             assertThatThrownBy(() ->
@@ -497,6 +511,7 @@ class BookingServiceTest {
          * A regular user can retrieve their own booking list. The method
          * ignores the supplied {@code userId} and always uses their own ID.
          */
+        @Transactional
         @Test
         @DisplayName("getUserBookings_givenRegularUser_thenReturnOwnBookings")
         void getUserBookings_givenRegularUser_thenReturnOwnBookings() {
@@ -537,6 +552,7 @@ class BookingServiceTest {
          * An admin can retrieve bookings for any user within their tenant
          * by supplying that user's ID.
          */
+        @Transactional
         @Test
         @DisplayName("getUserBookings_givenAdminRequest_thenReturnTargetUserBookings")
         void getUserBookings_givenAdminRequest_thenReturnTargetUserBookings() {
@@ -577,6 +593,7 @@ class BookingServiceTest {
          * When the target user does not exist within the tenant, the service
          * must throw {@link ResourceNotFoundException}.
          */
+        @Transactional
         @Test
         @DisplayName("getUserBookings_givenUnknownUser_thenThrowResourceNotFoundException")
         void getUserBookings_givenUnknownUser_thenThrowResourceNotFoundException() {

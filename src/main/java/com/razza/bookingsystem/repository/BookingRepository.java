@@ -1,7 +1,9 @@
 package com.razza.bookingsystem.repository;
 
 import com.razza.bookingsystem.domain.*;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * @param tenant the tenant to which the booking belongs
      * @return an Optional containing the Booking if found, or empty otherwise
      */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Booking> findByIdAndTenant(UUID bookingId, Tenant tenant);
 
     /**

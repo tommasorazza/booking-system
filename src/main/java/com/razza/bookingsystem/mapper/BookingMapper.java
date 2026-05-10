@@ -16,13 +16,14 @@ public interface BookingMapper {
     /**
      * Converts a {@link Booking} entity to a {@link BookingDto}.
      * Maps nested {@code event.id} and {@code event.name}
-     * to {@code eventId} and {@code eventName}.
+     * to {@code eventId} and {@code eventName} and {@Code user.id} to userId.
      *
      * @param booking the booking entity
      * @return the corresponding BookingDto
      */
     @Mapping(source = "event.id", target = "eventId")
     @Mapping(source = "event.name", target = "eventName")
+    @Mapping(source = "user.id", target = "userId")
     BookingDto toDto(Booking booking);
 
     /**

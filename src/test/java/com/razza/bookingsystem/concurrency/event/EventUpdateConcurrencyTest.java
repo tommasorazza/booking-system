@@ -1,4 +1,4 @@
-package com.razza.bookingsystem.integration.event;
+package com.razza.bookingsystem.concurrency.event;
 
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.dto.EventRequestDto;
@@ -6,9 +6,11 @@ import com.razza.bookingsystem.exception.EventDecreaseException;
 import com.razza.bookingsystem.repository.*;
 import com.razza.bookingsystem.service.BookingService;
 import com.razza.bookingsystem.service.EventService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.OffsetDateTime;
@@ -36,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * - No inconsistent state
  * - Business rule enforced: cannot decrease capacity if bookings exist
  */
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @SpringBootTest
 @ActiveProfiles("test")
 class EventUpdateConcurrencyTest {
@@ -57,6 +60,14 @@ class EventUpdateConcurrencyTest {
 
     @Autowired
     private TenantRepository tenantRepository;
+
+    @AfterEach
+    void cleanup() {
+        bookingRepository.deleteAll();
+        eventRepository.deleteAll();
+        userRepository.deleteAll();
+        tenantRepository.deleteAll();
+    }
 
     @Test
     void update_event_and_bookings_should_respect_capacity_rules() throws Exception {

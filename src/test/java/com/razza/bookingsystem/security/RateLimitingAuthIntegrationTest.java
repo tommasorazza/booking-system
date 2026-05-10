@@ -2,11 +2,14 @@ package com.razza.bookingsystem.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.razza.bookingsystem.dto.LoginRequest;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -22,7 +25,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * MockMvc sends all requests from 127.0.0.1, so all requests in a test
  * share the same IP bucket.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@ActiveProfiles("test")
+@SpringBootTest
 @AutoConfigureMockMvc
 class RateLimitingAuthIntegrationTest {
 
@@ -42,6 +48,7 @@ class RateLimitingAuthIntegrationTest {
      * against a real attack. The 11th request must be
      * blocked by the filter before authentication logic even runs.
      */
+    @Transactional
     @Test
     void loginEndpoint_shouldReturn429AfterTenAttempts() throws Exception {
         LoginRequest body = LoginRequest.builder()
@@ -50,18 +57,16 @@ class RateLimitingAuthIntegrationTest {
                 .tenantName("Tenant A")
                 .build();
 
-        String json = objectMapper.writeValueAsString(body);
-
         for (int i = 0; i < 10; i++) {
             mockMvc.perform(post("/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(json))
+                            .content(objectMapper.writeValueAsString(body)))
                     .andExpect(status().isUnauthorized());
         }
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
+                        .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isTooManyRequests());
     }
 }

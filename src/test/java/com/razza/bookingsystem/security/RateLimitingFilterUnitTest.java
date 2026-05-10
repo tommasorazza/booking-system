@@ -2,6 +2,7 @@ package com.razza.bookingsystem.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -43,6 +44,7 @@ class RateLimitingFilterUnitTest {
      * Also verifies that the filter chain was continued exactly 10 times,
      * confirming the blocked request never reached the controller.
      */
+    @Transactional
     @Test
     void authEndpoint_shouldAllowFirstTenRequests_thenBlock() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/auth/login");
@@ -69,6 +71,7 @@ class RateLimitingFilterUnitTest {
      * Exhausting the bucket for IP 10.0.0.1 must have no effect on IP 10.0.0.2,
      * which should still be able to make requests freely.
      */
+    @Transactional
     @Test
     void differentIps_shouldHaveIndependentBuckets() throws ServletException, IOException {
         FilterChain chain = mock(FilterChain.class);
