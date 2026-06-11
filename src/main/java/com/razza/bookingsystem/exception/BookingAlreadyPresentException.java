@@ -1,7 +1,7 @@
 package com.razza.bookingsystem.exception;
 
 /**
- * Thrown when a user tries to create a booking for an event
+ * Thrown when a user tries to create a booking for a event
  * for which they already have an existing booking.
  *
  * This exception indicates a violation of the business rule

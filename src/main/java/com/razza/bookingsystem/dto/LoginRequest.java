@@ -22,5 +22,5 @@ public class LoginRequest {
     private String password;
 
     @NotBlank
-    private String tenantName;
+    private String venueName;
 }

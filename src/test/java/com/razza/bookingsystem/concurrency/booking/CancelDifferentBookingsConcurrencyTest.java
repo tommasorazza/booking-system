@@ -3,7 +3,7 @@ package com.razza.bookingsystem.concurrency.booking;
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
-import com.razza.bookingsystem.repository.TenantRepository;
+import com.razza.bookingsystem.repository.VenueRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.service.BookingService;
 import org.junit.jupiter.api.AfterEach;
@@ -73,27 +73,26 @@ class CancelDifferentBookingsConcurrencyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private TenantRepository tenantRepository;
+    private VenueRepository venueRepository;
 
     @AfterEach
     void cleanup() {
         bookingRepository.deleteAll();
         eventRepository.deleteAll();
         userRepository.deleteAll();
-        tenantRepository.deleteAll();
+        venueRepository.deleteAll();
     }
 
     @Test
     void concurrent_cancellation_of_different_bookings_should_restore_capacity_correctly() throws Exception {
 
-        final Tenant tenant = tenantRepository.save(new Tenant());
+        final Venue venue = venueRepository.save(new Venue());
 
         Event event = Event.builder()
                 .name("Concurrent Cancel Multiple Bookings")
                 .date(OffsetDateTime.now().plusDays(1))
-                .availableCapacity(0)
-                .totalCapacity(10)
-                .tenant(tenant)
+                .bookingPolicy(new BookingPolicy(10,0))
+                .venue(venue)
                 .build();
 
         event = eventRepository.save(event);
@@ -106,8 +105,8 @@ class CancelDifferentBookingsConcurrencyTest {
             User user = new User();
             user.setEmail("user" + i + "@test.com");
             user.setPassword("password");
-            user.setRole(Role.USER);
-            user.setTenant(tenant);
+            user.setRole(Role.GUEST);
+            user.setVenue(venue);
             user = userRepository.save(user);
 
             users.add(user);
@@ -115,7 +114,7 @@ class CancelDifferentBookingsConcurrencyTest {
             Booking booking = Booking.builder()
                     .user(user)
                     .event(event)
-                    .tenant(tenant)
+                    .venue(venue)
                     .quantity(1)
                     .status(Status.CONFIRMED)
                     .createdAt(OffsetDateTime.now())
@@ -147,7 +146,7 @@ class CancelDifferentBookingsConcurrencyTest {
                         bookingService.cancelBooking(
                                 booking.getId(),
                                 user,
-                                tenant,
+                                venue,
                                 false
                         );
 
@@ -179,7 +178,7 @@ class CancelDifferentBookingsConcurrencyTest {
 
         assertEquals(
                 5,
-                updatedEvent.getAvailableCapacity(),
+                updatedEvent.getBookingPolicy().getAvailableCapacity(),
                 "Capacity must be restored correctly for all bookings"
         );
 

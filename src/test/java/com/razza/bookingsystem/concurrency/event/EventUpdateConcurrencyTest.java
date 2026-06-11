@@ -59,28 +59,27 @@ class EventUpdateConcurrencyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private TenantRepository tenantRepository;
+    private VenueRepository venueRepository;
 
     @AfterEach
     void cleanup() {
         bookingRepository.deleteAll();
         eventRepository.deleteAll();
         userRepository.deleteAll();
-        tenantRepository.deleteAll();
+        venueRepository.deleteAll();
     }
 
     @Test
     void update_event_and_bookings_should_respect_capacity_rules() throws Exception {
 
-        Tenant t = new Tenant();
-        final Tenant tenant = tenantRepository.save(t);
+        Venue t = new Venue();
+        final Venue venue = venueRepository.save(t);
 
         Event e = Event.builder()
                 .name("Pessimistic Lock Test")
                 .date(OffsetDateTime.now().plusDays(1))
-                .totalCapacity(10)
-                .availableCapacity(10)
-                .tenant(tenant)
+                .bookingPolicy(new BookingPolicy(10,10))
+                .venue(venue)
                 .build();
 
         final Event event = eventRepository.save(e);
@@ -91,8 +90,8 @@ class EventUpdateConcurrencyTest {
             User user = new User();
             user.setEmail("user" + i + "@test.com");
             user.setPassword("password");
-            user.setRole(Role.USER);
-            user.setTenant(tenant);
+            user.setRole(Role.GUEST);
+            user.setVenue(venue);
 
             users.add(userRepository.save(user));
         }
@@ -101,7 +100,7 @@ class EventUpdateConcurrencyTest {
         admin.setEmail("admin@test.com");
         admin.setPassword("password");
         admin.setRole(Role.ADMIN);
-        admin.setTenant(tenant);
+        admin.setVenue(venue);
 
         admin = userRepository.save(admin);
 
@@ -133,7 +132,7 @@ class EventUpdateConcurrencyTest {
                                 event.getId(),
                                 user,
                                 user,
-                                user.getTenant(),
+                                user.getVenue(),
                                 1,
                                 false
                         );
@@ -169,7 +168,7 @@ class EventUpdateConcurrencyTest {
 
                     System.out.println("iii");
 
-                    eventService.updateEvent(event.getId(), dto, tenant);
+                    eventService.updateEvent(event.getId(), dto, venue);
                     adminSuccess.incrementAndGet();
 
                 } catch (EventDecreaseException e) {
@@ -205,18 +204,18 @@ class EventUpdateConcurrencyTest {
             }
         }
 
-        int expectedAvailable = updatedEvent.getTotalCapacity() - totalBookedSeats;
+        int expectedAvailable = updatedEvent.getBookingPolicy().getTotalCapacity() - totalBookedSeats;
 
         System.out.println("BOOK SUCCESS: " + bookingSuccess.get());
         System.out.println("BOOK FAIL: " + bookingFail.get());
         System.out.println("ADMIN SUCCESS: " + adminSuccess.get());
         System.out.println("ADMIN FAIL: " + adminFail.get());
-        System.out.println("TOTAL CAPACITY: " + updatedEvent.getTotalCapacity());
-        System.out.println("AVAILABLE CAPACITY: " + updatedEvent.getAvailableCapacity());
+        System.out.println("TOTAL CAPACITY: " + updatedEvent.getBookingPolicy().getTotalCapacity());
+        System.out.println("AVAILABLE CAPACITY: " + updatedEvent.getBookingPolicy().getAvailableCapacity());
         System.out.println("BOOKED SEATS: " + totalBookedSeats);
 
         assertTrue(
-                updatedEvent.getAvailableCapacity() == expectedAvailable,
+                updatedEvent.getBookingPolicy().getAvailableCapacity() == expectedAvailable,
                 "Capacity inconsistency detected!"
         );
 

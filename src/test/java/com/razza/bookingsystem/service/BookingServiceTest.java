@@ -58,7 +58,7 @@ class BookingServiceTest {
     @InjectMocks
     private BookingService bookingService;
 
-    private Tenant tenant;
+    private Venue venue;
     private User user;
     private User adminUser;
     private Event futureEvent;
@@ -70,7 +70,7 @@ class BookingServiceTest {
      */
     @BeforeEach
     void initialize() {
-        tenant = Tenant.builder()
+        venue = Venue.builder()
                 .id(UUID.randomUUID())
                 .name("cinema")
                 .build();
@@ -78,24 +78,23 @@ class BookingServiceTest {
         user = User.builder()
                 .id(UUID.randomUUID())
                 .email("user@cinema.com")
-                .role(Role.USER)
-                .tenant(tenant)
+                .role(Role.GUEST)
+                .venue(venue)
                 .build();
 
         adminUser = User.builder()
                 .id(UUID.randomUUID())
                 .email("admin@cinema.com")
                 .role(Role.ADMIN)
-                .tenant(tenant)
+                .venue(venue)
                 .build();
 
         futureEvent = Event.builder()
                 .id(UUID.randomUUID())
                 .name("movie")
                 .date(OffsetDateTime.now().plusDays(7))
-                .availableCapacity(100)
-                .totalCapacity(100)
-                .tenant(tenant)
+                .bookingPolicy(new BookingPolicy(100,100))
+                .venue(venue)
                 .status(CONFIRMED)
                 .build();
     }
@@ -122,7 +121,7 @@ class BookingServiceTest {
                     .status(CONFIRMED)
                     .build();
 
-            when(eventRepository.findByIdAndTenant(futureEvent.getId(), tenant))
+            when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
                     .thenReturn(Optional.of(futureEvent));
             when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CONFIRMED))
                     .thenReturn(Optional.empty());
@@ -136,7 +135,7 @@ class BookingServiceTest {
                     .thenReturn(expectedDto);
 
             BookingDto result = bookingService.createBooking(
-                    futureEvent.getId(), user, user, tenant, quantity, false);
+                    futureEvent.getId(), user, user, venue, quantity, false);
 
             assertThat(result).isNotNull();
             assertThat(result.getStatus()).isEqualTo(CONFIRMED);
@@ -145,7 +144,7 @@ class BookingServiceTest {
         }
 
         /**
-         * When the event does not exist (or belongs to a different tenant),
+         * When the event does not exist (or belongs to a different venue),
          * the service must throw {@link ResourceNotFoundException}.
          */
         @Transactional
@@ -153,12 +152,12 @@ class BookingServiceTest {
         @DisplayName("createBooking_givenUnknownEvent_thenThrowResourceNotFoundException")
         void createBooking_givenUnknownEvent_thenThrowResourceNotFoundException() {
 
-            when(eventRepository.findByIdAndTenant(any(UUID.class), any(Tenant.class)))
+            when(eventRepository.findByIdAndVenue(any(UUID.class), any(Venue.class)))
                     .thenReturn(Optional.empty());  //number of when clauses is variable, only the mocks that the execution will go through should be stubbed, in this case, since the event check is done at the beginning of createBooking, there is no need to include other mocks
 
             assertThatThrownBy(() ->        // lambda syntax is used so that the createBooking() is not run instantly, but it is given to assertThrownBy to verify the kind of exception it throws
                     bookingService.createBooking(
-                            UUID.randomUUID(), user, user, tenant, 1, false))
+                            UUID.randomUUID(), user, user, venue, 1, false))
                     .isInstanceOf(ResourceNotFoundException.class);
 
             verify(bookingRepository, never()).save(any()); // this is just the common used syntax: verify(mock, times(1)).method()
@@ -172,12 +171,12 @@ class BookingServiceTest {
         @Test
         @DisplayName("createBooking_givenZeroQuantity_thenThrowQuantityException")
         void createBooking_givenZeroQuantity_thenThrowQuantityException() {
-            when(eventRepository.findByIdAndTenant(futureEvent.getId(), tenant))
+            when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
                     .thenReturn(Optional.of(futureEvent));
 
             assertThatThrownBy(() ->
                     bookingService.createBooking(
-                            futureEvent.getId(), user, user, tenant, 0, false))
+                            futureEvent.getId(), user, user, venue, 0, false))
                     .isInstanceOf(QuantityException.class);
 
             verify(bookingRepository, never()).save(any());
@@ -192,7 +191,7 @@ class BookingServiceTest {
         @DisplayName("createBooking_givenFullCapacity_thenThrowNotEnoughSeatsException")
         void createBooking_givenFullCapacity_thenThrowNotEnoughSeatsException() {
 
-            when(eventRepository.findByIdAndTenant(futureEvent.getId(), tenant))
+            when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
                     .thenReturn(Optional.of(futureEvent));
             when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CONFIRMED))
                     .thenReturn(Optional.empty());
@@ -203,7 +202,7 @@ class BookingServiceTest {
 
             assertThatThrownBy(() ->
                     bookingService.createBooking(
-                            futureEvent.getId(), user, user, tenant, 5, false))
+                            futureEvent.getId(), user, user, venue, 5, false))
                     .isInstanceOf(NotEnoughSeatsException.class);
         }
 
@@ -224,14 +223,14 @@ class BookingServiceTest {
                     .status(CONFIRMED)
                     .build();
 
-            when(eventRepository.findByIdAndTenant(futureEvent.getId(), tenant))
+            when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
                     .thenReturn(Optional.of(futureEvent));
             when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CONFIRMED))
                     .thenReturn(Optional.of(existing));
 
             assertThatThrownBy(() ->
                     bookingService.createBooking(
-                            futureEvent.getId(), user, user, tenant, 1, false))
+                            futureEvent.getId(), user, user, venue, 1, false))
                     .isInstanceOf(BookingAlreadyPresentException.class);
         }
 
@@ -247,18 +246,17 @@ class BookingServiceTest {
                     .id(UUID.randomUUID())
                     .name("Old Concert")
                     .date(OffsetDateTime.now().minusDays(1))
-                    .availableCapacity(50)
-                    .totalCapacity(50)
-                    .tenant(tenant)
+                    .bookingPolicy(new BookingPolicy(50,50))
+                    .venue(venue)
                     .status(CONFIRMED)
                     .build();
 
-            when(eventRepository.findByIdAndTenant(pastEvent.getId(), tenant))
+            when(eventRepository.findByIdAndVenue(pastEvent.getId(), venue))
                     .thenReturn(Optional.of(pastEvent));
 
             assertThatThrownBy(() ->
                     bookingService.createBooking(
-                            pastEvent.getId(), user, user, tenant, 1, false))
+                            pastEvent.getId(), user, user, venue, 1, false))
                     .isInstanceOf(PastEventException.class);
         }
 
@@ -280,7 +278,7 @@ class BookingServiceTest {
                     .status(CANCELLED)
                     .build();
 
-            when(eventRepository.findByIdAndTenant(futureEvent.getId(), tenant))
+            when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
                     .thenReturn(Optional.of(futureEvent));
             when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CONFIRMED))
                     .thenReturn(Optional.empty());
@@ -292,7 +290,7 @@ class BookingServiceTest {
             when(bookingMapper.toDto(cancelled)).thenReturn(new BookingDto());
 
             bookingService.createBooking(
-                    futureEvent.getId(), user, user, tenant, 3, false);
+                    futureEvent.getId(), user, user, venue, 3, false);
 
             assertThat(cancelled.getStatus()).isEqualTo(CONFIRMED);
             assertThat(cancelled.getQuantity()).isEqualTo(3);
@@ -318,15 +316,15 @@ class BookingServiceTest {
                     .id(UUID.randomUUID())
                     .user(user)
                     .event(futureEvent)
-                    .tenant(tenant)
+                    .venue(venue)
                     .quantity(2)
                     .status(CONFIRMED)
                     .build();
 
-            when(bookingRepository.findByIdAndTenant(booking.getId(), tenant))
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
                     .thenReturn(Optional.of(booking));
 
-            bookingService.cancelBooking(booking.getId(), user, tenant, false);
+            bookingService.cancelBooking(booking.getId(), user, venue, false);
 
             verify(eventRepository).increaseCapacity(futureEvent.getId(), 2);
             verify(bookingRepository).deleteBooking(booking.getId());
@@ -344,30 +342,30 @@ class BookingServiceTest {
             User otherUser = User.builder()
                     .id(UUID.randomUUID())
                     .email("other@acme.com")
-                    .tenant(tenant)
+                    .venue(venue)
                     .build();
 
             Booking booking = Booking.builder()
                     .id(UUID.randomUUID())
                     .user(otherUser)
                     .event(futureEvent)
-                    .tenant(tenant)
+                    .venue(venue)
                     .quantity(1)
                     .status(CONFIRMED)
                     .build();
 
-            when(bookingRepository.findByIdAndTenant(booking.getId(), tenant))
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
                     .thenReturn(Optional.of(booking));
 
             assertThatThrownBy(() ->
-                    bookingService.cancelBooking(booking.getId(), user, tenant, false))
+                    bookingService.cancelBooking(booking.getId(), user, venue, false))
                     .isInstanceOf(AccessDeniedException.class);
 
             verify(bookingRepository, never()).deleteBooking(any());
         }
 
         /**
-         * An admin may cancel any booking within their tenant, regardless of ownership.
+         * An admin may cancel any booking within their venue, regardless of ownership.
          */
         @Transactional
         @Test
@@ -378,16 +376,16 @@ class BookingServiceTest {
                     .id(UUID.randomUUID())
                     .user(user)
                     .event(futureEvent)
-                    .tenant(tenant)
+                    .venue(venue)
                     .quantity(1)
                     .status(CONFIRMED)
                     .build();
 
-            when(bookingRepository.findByIdAndTenant(booking.getId(), tenant))
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
                     .thenReturn(Optional.of(booking));
 
             // act — adminUser cancels user's booking
-            bookingService.cancelBooking(booking.getId(), adminUser, tenant, true);
+            bookingService.cancelBooking(booking.getId(), adminUser, venue, true);
 
             // assert
             verify(bookingRepository).deleteBooking(booking.getId());
@@ -412,7 +410,7 @@ class BookingServiceTest {
                     .id(UUID.randomUUID())
                     .user(user)
                     .event(futureEvent)
-                    .tenant(tenant)
+                    .venue(venue)
                     .quantity(2)
                     .status(CONFIRMED)
                     .build();
@@ -425,7 +423,7 @@ class BookingServiceTest {
                     .status(CONFIRMED)
                     .build();
 
-            when(bookingRepository.findByIdAndTenant(booking.getId(), tenant))
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
                     .thenReturn(Optional.of(booking));
             when(eventRepository.decreaseCapacity(futureEvent.getId(), newQuantity - 2))
                     .thenReturn(1);
@@ -433,7 +431,7 @@ class BookingServiceTest {
             when(bookingMapper.toDto(booking)).thenReturn(expectedDto);
 
             BookingDto result = bookingService.modifyQuantity(
-                    booking.getId(), user, tenant, newQuantity, false);
+                    booking.getId(), user, venue, newQuantity, false);
 
             assertThat(result.getQuantity()).isEqualTo(newQuantity);
             verify(bookingRepository).save(booking);
@@ -451,24 +449,24 @@ class BookingServiceTest {
             User otherUser = User.builder()
                     .id(UUID.randomUUID())
                     .email("other@acme.com")
-                    .tenant(tenant)
+                    .venue(venue)
                     .build();
 
             Booking booking = Booking.builder()
                     .id(UUID.randomUUID())
                     .user(otherUser)
                     .event(futureEvent)
-                    .tenant(tenant)
+                    .venue(venue)
                     .quantity(1)
                     .status(CONFIRMED)
                     .build();
 
-            when(bookingRepository.findByIdAndTenant(booking.getId(), tenant))
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
                     .thenReturn(Optional.of(booking));
 
             assertThatThrownBy(() ->
                     bookingService.modifyQuantity(
-                            booking.getId(), user, tenant, 3, false))
+                            booking.getId(), user, venue, 3, false))
                     .isInstanceOf(AccessDeniedException.class);
         }
 
@@ -485,17 +483,17 @@ class BookingServiceTest {
                     .id(UUID.randomUUID())
                     .user(user)
                     .event(futureEvent)
-                    .tenant(tenant)
+                    .venue(venue)
                     .quantity(2)
                     .status(CONFIRMED)
                     .build();
 
-            when(bookingRepository.findByIdAndTenant(booking.getId(), tenant))
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
                     .thenReturn(Optional.of(booking));
 
             assertThatThrownBy(() ->
                     bookingService.modifyQuantity(
-                            booking.getId(), user, tenant, 0, false))
+                            booking.getId(), user, venue, 0, false))
                     .isInstanceOf(QuantityException.class);
 
             verify(eventRepository, never()).decreaseCapacity(any(), anyInt());
@@ -520,7 +518,7 @@ class BookingServiceTest {
                     .id(UUID.randomUUID())
                     .user(user)
                     .event(futureEvent)
-                    .tenant(tenant)
+                    .venue(venue)
                     .quantity(1)
                     .status(CONFIRMED)
                     .build();
@@ -532,16 +530,16 @@ class BookingServiceTest {
                     .status(CONFIRMED)
                     .build();
 
-            when(userRepository.findByIdAndTenantId(user.getId(), tenant.getId()))
+            when(userRepository.findByIdAndVenueId(user.getId(), venue.getId()))
                     .thenReturn(Optional.of(user));
-            when(bookingRepository.findByUserIdAndTenant(user.getId(), tenant))
+            when(bookingRepository.findByUserIdAndVenue(user.getId(), venue))
                     .thenReturn(List.of(booking));
             when(bookingMapper.toDto(booking)).thenReturn(dto);
 
             List<BookingDto> results = bookingService.getUserBookings(
                     UUID.randomUUID(),
                     user.getId(),
-                    tenant,
+                    venue,
                     false);
 
             assertThat(results).hasSize(1);
@@ -549,7 +547,7 @@ class BookingServiceTest {
         }
 
         /**
-         * An admin can retrieve bookings for any user within their tenant
+         * An admin can retrieve bookings for any user within their venue
          * by supplying that user's ID.
          */
         @Transactional
@@ -561,7 +559,7 @@ class BookingServiceTest {
                     .id(UUID.randomUUID())
                     .user(user)
                     .event(futureEvent)
-                    .tenant(tenant)
+                    .venue(venue)
                     .quantity(3)
                     .status(CONFIRMED)
                     .build();
@@ -573,24 +571,24 @@ class BookingServiceTest {
                     .status(CONFIRMED)
                     .build();
 
-            when(userRepository.findByIdAndTenantId(user.getId(), tenant.getId()))
+            when(userRepository.findByIdAndVenueId(user.getId(), venue.getId()))
                     .thenReturn(Optional.of(user));
-            when(bookingRepository.findByUserIdAndTenant(user.getId(), tenant))
+            when(bookingRepository.findByUserIdAndVenue(user.getId(), venue))
                     .thenReturn(List.of(booking));
             when(bookingMapper.toDto(booking)).thenReturn(dto);
 
             List<BookingDto> results = bookingService.getUserBookings(
                     user.getId(),
                     adminUser.getId(),
-                    tenant,
+                    venue,
                     true);
 
             assertThat(results).hasSize(1);
-            assertThat(results.get(0).getQuantity()).isEqualTo(3);  //here the test asserts on quantity instead, verifying that the admin can correctly fetch users bookings within the same tenant
+            assertThat(results.get(0).getQuantity()).isEqualTo(3);  //here the test asserts on quantity instead, verifying that the admin can correctly fetch users bookings within the same venue
         }
 
         /**
-         * When the target user does not exist within the tenant, the service
+         * When the target user does not exist within the venue, the service
          * must throw {@link ResourceNotFoundException}.
          */
         @Transactional
@@ -600,12 +598,12 @@ class BookingServiceTest {
 
             UUID unknownUserId = UUID.randomUUID();
 
-            when(userRepository.findByIdAndTenantId(unknownUserId, tenant.getId()))
+            when(userRepository.findByIdAndVenueId(unknownUserId, venue.getId()))
                     .thenReturn(Optional.empty());
 
             assertThatThrownBy(() ->
                     bookingService.getUserBookings(
-                            unknownUserId, unknownUserId, tenant, true))
+                            unknownUserId, unknownUserId, venue, true))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
     }

@@ -99,6 +99,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler(InactivePerformanceException.class)
+    public ResponseEntity<Map<String, Object>> handleInactivePerformance(InactivePerformanceException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     /**
      * Handles ResourceNotFoundException and returns 404 NOT FOUND.
      */
@@ -123,12 +128,37 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    @ExceptionHandler(InvalidScheduleException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidSchedule(InvalidScheduleException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidRoleException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidRole(InvalidRoleException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(MissingAvailabilityException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingAvailability(MissingAvailabilityException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(PerformanceNotMatchingUserException.class)
+    public ResponseEntity<Map<String, Object>> handlePerformanceNotMatchingUser(PerformanceNotMatchingUserException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     /**
      * Handles IllegalArgumentException and returns 400 BAD_REQUEST.
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(invalidAgeException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidAge(invalidAgeException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
     /**

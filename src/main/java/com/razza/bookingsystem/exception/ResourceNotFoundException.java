@@ -3,7 +3,7 @@ package com.razza.bookingsystem.exception;
 import java.util.UUID;
 
 /**
- * Thrown when a requested resource (User, Event, Tenant) is not found in the system.
+ * Thrown when a requested resource (User, Event, Venue) is not found in the system.
 */
 public class ResourceNotFoundException extends RuntimeException {
 

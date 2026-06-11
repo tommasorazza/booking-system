@@ -3,7 +3,7 @@ package com.razza.bookingsystem.concurrency.booking;
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
-import com.razza.bookingsystem.repository.TenantRepository;
+import com.razza.bookingsystem.repository.VenueRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.service.BookingService;
 import org.junit.jupiter.api.AfterEach;
@@ -56,28 +56,27 @@ class ModifyBookingConcurrencyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private TenantRepository tenantRepository;
+    private VenueRepository venueRepository;
 
     @AfterEach
     void cleanup() {
         bookingRepository.deleteAll();
         eventRepository.deleteAll();
         userRepository.deleteAll();
-        tenantRepository.deleteAll();
+        venueRepository.deleteAll();
     }
 
     @Test
     void modify_booking_concurrently_should_keep_capacity_consistent() throws Exception {
 
-        Tenant tenant = new Tenant();
-        tenant = tenantRepository.save(tenant);
+        Venue venue = new Venue();
+        venue = venueRepository.save(venue);
 
         Event event = Event.builder()
                 .name("Modify Concurrency Test")
                 .date(OffsetDateTime.now().plusDays(1))
-                .availableCapacity(98)
-                .totalCapacity(100)
-                .tenant(tenant)
+                .bookingPolicy(new BookingPolicy(100,98))
+                .venue(venue)
                 .build();
 
         event = eventRepository.save(event);
@@ -89,7 +88,7 @@ class ModifyBookingConcurrencyTest {
             admin.setEmail("admin" + i + "@test.com");
             admin.setPassword("password");
             admin.setRole(Role.ADMIN);
-            admin.setTenant(tenant);
+            admin.setVenue(venue);
 
             admins.add(userRepository.save(admin));
         }
@@ -99,7 +98,7 @@ class ModifyBookingConcurrencyTest {
         Booking booking = Booking.builder()
                 .user(bookingUser)
                 .event(event)
-                .tenant(tenant)
+                .venue(venue)
                 .quantity(2)
                 .status(Status.CONFIRMED)
                 .createdAt(OffsetDateTime.now())
@@ -130,7 +129,7 @@ class ModifyBookingConcurrencyTest {
                         bookingService.modifyQuantity(
                                 bookingId,
                                 admin,
-                                admin.getTenant(),
+                                admin.getVenue(),
                                 newQuantity,
                                 true
                         );
@@ -167,11 +166,11 @@ class ModifyBookingConcurrencyTest {
         boolean validQuantity = finalQuantity >= 1 && finalQuantity <= 10;
         assertEquals(true, validQuantity, "Final quantity must be within expected range");
 
-        int expectedAvailable = updatedEvent.getTotalCapacity() - finalQuantity;
+        int expectedAvailable = updatedEvent.getBookingPolicy().getTotalCapacity() - finalQuantity;
 
         assertEquals(
                 expectedAvailable,
-                updatedEvent.getAvailableCapacity(),
+                updatedEvent.getBookingPolicy().getAvailableCapacity(),
                 "Event capacity must remain consistent"
         );
     }

@@ -3,7 +3,7 @@ package com.razza.bookingsystem.concurrency.booking;
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
-import com.razza.bookingsystem.repository.TenantRepository;
+import com.razza.bookingsystem.repository.VenueRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.service.BookingService;
 import org.junit.jupiter.api.AfterEach;
@@ -26,8 +26,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests that concurrent cancellation attempts on the same booking are handled correctly.
  *
  * Setup:
- * - Creates a tenant, an event with 18 available seats out of 20 total
- * - Creates 10 admin users belonging to the same tenant
+ * - Creates a venue, a event with 18 available seats out of 20 total
+ * - Creates 10 admin users belonging to the same venue
  * - Creates a confirmed booking of 2 seats for the first admin user
  *
  * Execution:
@@ -60,33 +60,32 @@ class CancelBookingConcurrencyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private TenantRepository tenantRepository;
+    private VenueRepository venueRepository;
 
     @AfterEach
     void cleanup() {
         bookingRepository.deleteAll();
         eventRepository.deleteAll();
         userRepository.deleteAll();
-        tenantRepository.deleteAll();
+        venueRepository.deleteAll();
     }
 
     @Test
     void cancel_same_booking_concurrently_should_restore_capacity_once() throws Exception {
 
-        Tenant tenant = new Tenant();
-        tenant = tenantRepository.save(tenant);
+        Venue venue = new Venue();
+        venue = venueRepository.save(venue);
 
         Event event = Event.builder()
                 .name("Concurrency Cancel Test")
                 .date(OffsetDateTime.now().plusDays(1))
-                .availableCapacity(18)
-                .totalCapacity(20)
-                .tenant(tenant)
+                .bookingPolicy(new BookingPolicy(20,18))
+                .venue(venue)
                 .build();
 
         event = eventRepository.save(event);
 
-        int initialCapacity = event.getAvailableCapacity();
+        int initialCapacity = event.getBookingPolicy().getAvailableCapacity();
 
         List<User> admins = new ArrayList<User>();
 
@@ -95,7 +94,7 @@ class CancelBookingConcurrencyTest {
             admin.setEmail("admin" + i + "@test.com");
             admin.setPassword("password");
             admin.setRole(Role.ADMIN);
-            admin.setTenant(tenant);
+            admin.setVenue(venue);
 
             admins.add(userRepository.save(admin));
         }
@@ -105,7 +104,7 @@ class CancelBookingConcurrencyTest {
         Booking booking = Booking.builder()
                 .user(bookingUser)
                 .event(event)
-                .tenant(tenant)
+                .venue(venue)
                 .quantity(2)
                 .status(Status.CONFIRMED)
                 .createdAt(OffsetDateTime.now())
@@ -135,7 +134,7 @@ class CancelBookingConcurrencyTest {
                         bookingService.cancelBooking(
                                 bookingId,
                                 admin,
-                                admin.getTenant(),
+                                admin.getVenue(),
                                 true
                         );
 
@@ -161,14 +160,14 @@ class CancelBookingConcurrencyTest {
 
         System.out.println("SUCCESS: " + success.get());
         System.out.println("FAIL: " + fail.get());
-        System.out.println("available capacity: " + event.getAvailableCapacity());
+        System.out.println("available capacity: " + event.getBookingPolicy().getAvailableCapacity());
 
         assertEquals(1, success.get(), "Only one cancellation should succeed");
         assertEquals(9, fail.get(), "All other cancellations should fail");
 
         assertEquals(
                 initialCapacity + 2,
-                updated.getAvailableCapacity(),
+                updated.getBookingPolicy().getAvailableCapacity(),
                 "Capacity must be restored exactly once"
         );
 

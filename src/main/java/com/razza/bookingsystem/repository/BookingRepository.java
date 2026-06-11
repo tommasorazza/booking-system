@@ -29,23 +29,23 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     Optional<Booking> findByUserAndEventAndStatus(User user, Event event, Status status);
 
     /**
-     * Finds a booking by its ID within a specific tenant.
+     * Finds a booking by its ID within a specific venue.
      *
      * @param bookingId the UUID of the booking
-     * @param tenant the tenant to which the booking belongs
+     * @param venue the venue to which the booking belongs
      * @return an Optional containing the Booking if found, or empty otherwise
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<Booking> findByIdAndTenant(UUID bookingId, Tenant tenant);
+    Optional<Booking> findByIdAndVenue(UUID bookingId, Venue venue);
 
     /**
-     * Retrieves all bookings made by a specific user within a given tenant.
+     * Retrieves all bookings made by a specific user within a given venue.
      *
      * @param userId the UUID of the user
-     * @param tenant the tenant to which the bookings belong
-     * @return a collection of bookings for the given user and tenant
+     * @param venue the venue to which the bookings belong
+     * @return a collection of bookings for the given user and venue
      */
-    Collection<Booking> findByUserIdAndTenant(UUID userId, Tenant tenant);
+    Collection<Booking> findByUserIdAndVenue(UUID userId, Venue venue);
 
     /**
      * Counts the number of bookings for a given event with a specific status.

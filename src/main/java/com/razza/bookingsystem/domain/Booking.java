@@ -8,7 +8,7 @@ import java.util.UUID;
 
 /**
  * Represents a booking made by a user for a specific event.
- * A user can book multiple seats for an event, but cannot book
+ * A user can book multiple seats for a event, but cannot book
  * the same event more than once (enforced by unique constraint).
  */
 @Entity
@@ -19,10 +19,10 @@ import java.util.UUID;
 @Builder
 @Table(
         name = "booking",
-        uniqueConstraints = {@UniqueConstraint(name = "booking_user_event_unique",  columnNames = {"userId", "event_id"})},
+        uniqueConstraints = {@UniqueConstraint(name = "booking_user_event_unique",  columnNames = {"user_id", "event_id"})},
         indexes = { @Index(name = "booking_user_index", columnList = "user_id"),
                 @Index(name = "booking_event_index", columnList = "event_id"),
-                @Index(name = "booking_tenant_index", columnList = "tenantId")}
+                @Index(name = "booking_venue_index", columnList = "venue_id")}
 )
 public class Booking {
 
@@ -41,10 +41,10 @@ public class Booking {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
-    /** Tenant to which the booking belongs. */
+    /** Venue to which the booking belongs. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id")
-    private Tenant tenant;
+    @JoinColumn(name = "venue_id")
+    private Venue venue;
 
     /** Number of seats booked. */
     private int quantity;

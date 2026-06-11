@@ -2,6 +2,7 @@ package com.razza.bookingsystem.config;
 
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.repository.*;
+import com.razza.bookingsystem.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.OffsetDateTime;
+import java.util.*;
 
 // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
@@ -16,7 +18,7 @@ import java.time.OffsetDateTime;
  * Initializes sample data in the database at application startup.
  *
  * This class uses a {@link CommandLineRunner} bean to insert:
- *  Tenants
+ *  Venues
  *  Users (with encoded passwords)
  *  Events
  *  Bookings
@@ -24,22 +26,25 @@ import java.time.OffsetDateTime;
  * In production, users would typically sign up via the API, and
  * bookings would be created via application logic.
  */
-@Configuration
+@Configuration     //@Configuration because this class is a source of beans (CommandLineRunner)
 @RequiredArgsConstructor
 public class DataInitializer {
 
-    private final TenantRepository tenantRepository;
+    private final VenueRepository venueRepository;
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
     private final BookingRepository bookingRepository;
+    private final PerformanceRepository performanceRepository;
+    private final AvailabilityRepository availabilityRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
     /**
      * This class uses a CommandLineRunner bean to seed initial data.
      *
      * Bootstrap note:
-     * Since tenants and their first admins cannot be created via the API,
-     * this initializer creates one ADMIN user for each tenant at startup.
+     * Since venues and their first admins cannot be created via the API,
+     * this initializer creates one ADMIN user for each venue at startup.
      *
      * Passwords are encoded using the provided PasswordEncoder before being saved
      * to the database.
@@ -50,174 +55,354 @@ public class DataInitializer {
      * @return a CommandLineRunner that seeds the database
      */
     @Bean
-    CommandLineRunner initData() {
+    CommandLineRunner initData() {      //CommandLineRunner is an interface that runs code just after the application startup
         return new CommandLineRunner() {
             @Override
-            public void run(String... args) throws Exception {
-                Tenant tenantA = new Tenant();
-                tenantA.setName("Tenant A");
-                Tenant tenantB = new Tenant();
-                tenantB.setName("Tenant B");
-                Tenant tenantC = new Tenant();
-                tenantC.setName("Tenant C");
+            public void run(String... args) throws Exception {      // run(String... args) is the run method signature, it can't be changed, it means the number of arguments passed to run() is variable, in this case none, but from command line it could be called with arguments
+                Venue venueA = new Venue();
+                venueA.setName("venue A");
+                Venue venueB = new Venue();
+                venueB.setName("venue B");
+                Venue venueC = new Venue();
+                venueC.setName("venue C");
 
 
-                tenantRepository.save(tenantA);
-                tenantRepository.save(tenantB);
-                tenantRepository.save(tenantC);
+                venueRepository.save(venueA);
+                venueRepository.save(venueB);
+                venueRepository.save(venueC);
 
-                User alice = new User();
-                alice.setEmail("alice@example.com");
-                alice.setPassword(passwordEncoder.encode("password"));
-                alice.setRole(Role.USER);
-                alice.setTenant(tenantA);
+                User ashley = User.builder()
+                        .name("ashley")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("ashley@example.com")
+                        .password(passwordEncoder.encode("password"))
+                        .role(Role.GUEST)
+                        .venue(venueA)
+                        .status(Status.CONFIRMED)
+                        .build();
 
-                User ariana = new User();
-                ariana.setEmail("ariana@example.com");
-                ariana.setPassword(passwordEncoder.encode("password"));
-                ariana.setRole(Role.USER);
-                ariana.setTenant(tenantA);
+                User alice = User.builder()
+                        .name("alice")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("alice@example.com")
+                        .password(passwordEncoder.encode("password"))
+                        .role(Role.GUEST)
+                        .venue(venueA)
+                        .status(Status.CONFIRMED)
+                        .build();
 
-                User adminA = new User();
-                adminA.setEmail("adminA@example.com");
-                adminA.setPassword(passwordEncoder.encode("adminA_pass"));
-                adminA.setRole(Role.ADMIN);
-                adminA.setTenant(tenantA);
+                User ariana = User.builder()
+                        .name("ariana")
+                        .birthDate(OffsetDateTime.parse("2010-01-01T00:00:00+02:00"))
+                        .email("ariana@example.com")
+                        .password(passwordEncoder.encode("password"))
+                        .role(Role.GUEST)
+                        .venue(venueA)
+                        .status(Status.CONFIRMED)
+                        .build();
+
+                User adam = User.builder()
+                        .name("adam")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("adam@example.com")
+                        .password(passwordEncoder.encode("password"))
+                        .role(Role.PERFORMER)
+                        .venue(venueA)
+                        .status(Status.CONFIRMED)
+                        .performances(new HashSet<>(Set.of(
+                                Performance.builder()
+                                .name("jazz")
+                                .description("jazz session")
+                                .duration(120)
+                                .performanceType(PerformanceType.LIVE_MUSIC)
+                                .build(),
+                                Performance.builder()
+                                .name("rock")
+                                .description("rock session")
+                                .duration(120)
+                                .performanceType(PerformanceType.LIVE_MUSIC)
+                                .build())
+                                ))
+                        .availability(
+                                new Availability(true,true,true,true,false,false,false)
+                        )
+                        .build();
+
+                adam.getAvailability().setUser(adam);
+                userRepository.save(adam);
+
+                for(Performance performance : adam.getPerformances()){
+                    performance.setUser(adam);
+                    performanceRepository.save(performance);
+                }
+
+                User alex = User.builder()
+                        .name("alex")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("alex@example.com")
+                        .password(passwordEncoder.encode("password"))
+                        .role(Role.PERFORMER)
+                        .venue(venueA)
+                        .status(Status.CONFIRMED)
+                        .performances(new HashSet<>(Set.of(
+                                Performance.builder()
+                                        .name("blues")
+                                        .description("blues session")
+                                        .duration(120)
+                                        .performanceType(PerformanceType.LIVE_MUSIC)
+                                        .build())
+                        ))
+                        .availability(
+                                new Availability(false,false,true,false,false,true,true)
+                        )
+                        .build();
+
+                alex.getAvailability().setUser(alex);
+                userRepository.save(alex);
+
+                for(Performance performance : alex.getPerformances()){
+                    performance.setUser(alex);
+                    performanceRepository.save(performance);
+                }
+
+                User adrien = User.builder()
+                        .name("adrien")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("adrien@example.com")
+                        .password(passwordEncoder.encode("password"))
+                        .role(Role.PERFORMER)
+                        .venue(venueA)
+                        .status(Status.CONFIRMED)
+                        .performances(new HashSet<>(Set.of(
+                                Performance.builder()
+                                        .name("funk")
+                                        .description("funky session")
+                                        .duration(120)
+                                        .performanceType(PerformanceType.LIVE_MUSIC)
+                                        .build())
+                        ))
+                        .availability(
+                                new Availability(false,false,false,true,true,true,false)
+                        )
+                        .build();
+
+                adrien.getAvailability().setUser(adrien);
+                userRepository.save(adrien);
+
+                for(Performance performance : adrien.getPerformances()){
+                    performance.setUser(adrien);
+                    performanceRepository.save(performance);
+                }
+
+                User adminA = User.builder()
+                        .name("adminA")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("adminA@example.com")
+                        .password(passwordEncoder.encode("adminA_pass"))
+                        .role(Role.ADMIN)
+                        .venue(venueA)
+                        .status(Status.CONFIRMED)
+                        .build();
 
                 userRepository.save(alice);
                 userRepository.save(ariana);
+                userRepository.save(ashley);
                 userRepository.save(adminA);
 
-                User bob = new User();
-                bob.setEmail("bob@example.com");
-                bob.setPassword(passwordEncoder.encode("password"));
-                bob.setRole(Role.USER);
-                bob.setTenant(tenantB);
+                User bob = User.builder()
+                        .name("bob")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("bob@example.com")
+                        .password(passwordEncoder.encode("password"))
+                        .role(Role.GUEST)
+                        .venue(venueB)
+                        .status(Status.CONFIRMED)
+                        .build();
 
-                User bert = new User();
-                bert.setEmail("bert@example.com");
-                bert.setPassword(passwordEncoder.encode("password"));
-                bert.setRole(Role.USER);
-                bert.setTenant(tenantB);
+                User bert = User.builder()
+                        .name("bert")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("bert@example.com")
+                        .password(passwordEncoder.encode("password"))
+                        .role(Role.GUEST)
+                        .venue(venueB)
+                        .status(Status.CONFIRMED)
+                        .build();
 
-                User adminB = new User();
-                adminB.setEmail("adminB@example.com");
-                adminB.setPassword(passwordEncoder.encode("adminB_pass"));
-                adminB.setRole(Role.ADMIN);
-                adminB.setTenant(tenantB);
+                User benjamin = User.builder()
+                        .name("benjamin")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("benjamin@example.com")
+                        .password(passwordEncoder.encode("password"))
+                        .role(Role.PERFORMER)
+                        .venue(venueB)
+                        .status(Status.CONFIRMED)
+                        .performances(new HashSet<>(Set.of(
+                                Performance.builder()
+                                        .name("cabaret")
+                                        .description("cabaret session")
+                                        .duration(120)
+                                        .performanceType(PerformanceType.COMEDY)
+                                        .build())
+                        ))
+                        .availability(
+                                new Availability(false,false,false,false,true,true,true)
+                        )
+                        .build();
+
+                benjamin.getAvailability().setUser(benjamin);
+                userRepository.save(benjamin);
+
+                for(Performance performance : benjamin.getPerformances()){
+                    performance.setUser(benjamin);
+                    performanceRepository.save(performance);
+                }
+
+
+                User adminB = User.builder()
+                        .name("adminB")
+                        .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00+02:00"))
+                        .email("adminB@example.com")
+                        .password(passwordEncoder.encode("adminB_pass"))
+                        .role(Role.ADMIN)
+                        .venue(venueB)
+                        .status(Status.CONFIRMED)
+                        .build();
 
                 userRepository.save(bob);
                 userRepository.save(bert);
                 userRepository.save(adminB);
 
-                User adminC = new User();
-                adminC.setEmail("adminC@example.com");
-                adminC.setPassword(passwordEncoder.encode("adminC_pass"));
-                adminC.setRole(Role.ADMIN);
-                adminC.setTenant(tenantC);
-
-                userRepository.save(adminC);
-
                 Event event1 = Event.builder()
-                        .name("Flowers")
-                        .description("Learn to grow flowers")
-                        .location("Room 101")
-                        .date(OffsetDateTime.now().plusDays(1))
-                        .totalCapacity(30)
-                        .availableCapacity(28)
-                        .tenant(tenantA)
+                        .name("Funky jazz event")
+                        .description("Artists will play jazz and funk")
+                        .location("main bar")
+                        .date(OffsetDateTime.parse("2026-07-01T18:00:00+02:00"))
+                        .bookingPolicy(new BookingPolicy(30,26))
+                        .venue(venueA)
                         .status(Status.CONFIRMED)
+                        .schedule(List.of(
+                                TimeSlot.builder()
+                                        .userEmail("adam@example.com")
+                                        .startTime(OffsetDateTime.parse("2026-06-01T18:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-06-01T20:00:00+02:00"))
+                                        .performanceId(userRepository.findByEmailAndVenue("adam@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("jazz")).findFirst().get().getId())
+                                        .build(),
+                                TimeSlot.builder()
+                                        .userEmail("adrien@example.com")
+                                        .startTime(OffsetDateTime.parse("2026-06-01T20:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-06-01T22:00:00+02:00"))
+                                        .performanceId(userRepository.findByEmailAndVenue("adrien@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("funk")).findFirst().get().getId())
+                                        .build()
+
+                        ))
+                        .eighteenPlus(false)
                         .build();
 
                 Event event2 = Event.builder()
-                        .name("Rocks")
-                        .description("Learn different rocks")
-                        .location("Room 202")
-                        .date(OffsetDateTime.now().plusDays(2))
-                        .totalCapacity(25)
-                        .availableCapacity(24)
-                        .tenant(tenantB)
+                        .name("blues, rock and jazz event")
+                        .description("Artists will play blues, rock and jazz")
+                        .location("main bar")
+                        .date(OffsetDateTime.parse("2026-07-02T19:00:00+02:00"))
+                        .bookingPolicy(new BookingPolicy(30))
+                        .venue(venueA)
                         .status(Status.CONFIRMED)
+                        .schedule(List.of(
+                                TimeSlot.builder()
+                                        .userEmail("alex@example.com")
+                                        .startTime(OffsetDateTime.parse("2026-06-02T19:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-06-02T21:00:00+02:00"))
+                                        .performanceId(userRepository.findByEmailAndVenue("alex@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("blues")).findFirst().get().getId())
+                                        .build(),
+                                TimeSlot.builder()
+                                        .userEmail("adam@example.com")
+                                        .startTime(OffsetDateTime.parse("2026-06-02T21:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-06-02T23:00:00+02:00"))
+                                        .performanceId(userRepository.findByEmailAndVenue("adam@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("rock")).findFirst().get().getId())
+                                        .build(),
+                                TimeSlot.builder()
+                                        .userEmail("adam@example.com")
+                                        .startTime(OffsetDateTime.parse("2026-06-02T23:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-06-03T01:00:00+02:00"))
+                                        .performanceId(userRepository.findByEmailAndVenue("adam@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("jazz")).findFirst().get().getId())
+                                        .build()
+
+                        ))
+                        .eighteenPlus(false)
                         .build();
 
                 Event event3 = Event.builder()
-                        .name("Origami")
-                        .description("Learn paper origami")
-                        .location("Room 303")
-                        .date(OffsetDateTime.now().plusDays(1))
-                        .totalCapacity(15)
-                        .availableCapacity(8)
-                        .tenant(tenantA)
+                        .name("funky music event")
+                        .description("Adrien will play funky music")
+                        .location("the underground bar")
+                        .date(OffsetDateTime.parse("2026-07-02T20:00:00+02:00"))
+                        .bookingPolicy(null)
+                        .venue(venueA)
                         .status(Status.CONFIRMED)
+                        .schedule(List.of(
+                                TimeSlot.builder()
+                                        .userEmail("adrien@example.com")
+                                        .startTime(OffsetDateTime.parse("2026-06-02T20:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-06-02T22:00:00+02:00"))
+                                        .performanceId(userRepository.findByEmailAndVenue("adrien@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("funk")).findFirst().get().getId())
+                                        .build()
+                        ))
+                        .eighteenPlus(true)
                         .build();
 
                 Event event4 = Event.builder()
-                        .name("Yoga")
-                        .description("Learn yoga")
-                        .location("Room 404")
-                        .date(OffsetDateTime.now().plusDays(2))
-                        .totalCapacity(50)
-                        .availableCapacity(50)
-                        .tenant(tenantC)
+                        .name("cabaret")
+                        .description("cabaret by Benjamin")
+                        .location("main hall")
+                        .date(OffsetDateTime.parse("2026-07-01T21:00:00+02:00"))
+                        .bookingPolicy(new BookingPolicy(50,45))
+                        .venue(venueB)
                         .status(Status.CONFIRMED)
-                        .build();
-
-                Event event5 = Event.builder()
-                        .name("Running")
-                        .description("Learn how to run faster")
-                        .location("Room 505")
-                        .date(OffsetDateTime.now().plusDays(3))
-                        .totalCapacity(25)
-                        .availableCapacity(25)
-                        .tenant(tenantB)
-                        .status(Status.CONFIRMED)
+                        .schedule(List.of(
+                                TimeSlot.builder()
+                                        .userEmail("benjamin@example.com")
+                                        .startTime(OffsetDateTime.parse("2026-06-01T21:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-06-01T23:00:00+02:00"))
+                                        .performanceId(userRepository.findByEmailAndVenue("benjamin@example.com", venueB).get().getPerformances().stream().filter(performance -> performance.getName().equals("cabaret")).findFirst().get().getId())
+                                        .build()
+                        ))
+                        .eighteenPlus(false)
                         .build();
 
                 eventRepository.save(event1);
                 eventRepository.save(event2);
                 eventRepository.save(event3);
                 eventRepository.save(event4);
-                eventRepository.save(event5);
 
                 Booking booking1 = Booking.builder()
                         .user(alice)
                         .event(event1)
-                        .tenant(tenantA)
+                        .venue(venueA)
                         .quantity(2)
                         .status(Status.CONFIRMED)
                         .createdAt(OffsetDateTime.now())
                         .build();
 
                 Booking booking2 = Booking.builder()
-                        .user(bob)
-                        .event(event2)
-                        .tenant(tenantB)
-                        .quantity(1)
-                        .status(Status.CONFIRMED)
-                        .createdAt(OffsetDateTime.now())
-                        .build();
-
-                Booking booking3 = Booking.builder()
                         .user(ariana)
-                        .event(event3)
-                        .tenant(tenantA)
-                        .quantity(5)
+                        .event(event1)
+                        .venue(venueA)
+                        .quantity(2)
                         .status(Status.CONFIRMED)
                         .createdAt(OffsetDateTime.now())
                         .build();
 
                 Booking booking4 = Booking.builder()
-                        .user(alice)
-                        .event(event3)
-                        .tenant(tenantA)
-                        .quantity(2)
+                        .user(bob)
+                        .event(event4)
+                        .venue(venueB)
+                        .quantity(5)
                         .status(Status.CONFIRMED)
                         .createdAt(OffsetDateTime.now())
                         .build();
 
                 bookingRepository.save(booking1);
                 bookingRepository.save(booking2);
-                bookingRepository.save(booking3);
                 bookingRepository.save(booking4);
             }
         };

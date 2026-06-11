@@ -4,7 +4,7 @@ import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.exception.BookingAlreadyPresentException;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
-import com.razza.bookingsystem.repository.TenantRepository;
+import com.razza.bookingsystem.repository.VenueRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.service.BookingService;
 import org.junit.jupiter.api.AfterEach;
@@ -67,35 +67,34 @@ class CreateBookingConcurrencyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private TenantRepository tenantRepository;
+    private VenueRepository venueRepository;
 
     @AfterEach
     void cleanup() {
         bookingRepository.deleteAll();
         eventRepository.deleteAll();
         userRepository.deleteAll();
-        tenantRepository.deleteAll();
+        venueRepository.deleteAll();
     }
 
     @Test
     void same_user_concurrent_booking_should_create_only_one_booking() throws Exception {
 
-        final Tenant tenant = tenantRepository.save(new Tenant());
+        final Venue venue = venueRepository.save(new Venue());
 
 
         final User user = userRepository.save(User.builder()
                 .email("user@test.com")
                 .password("password")
-                .role(Role.USER)
-                .tenant(tenant)
+                .role(Role.GUEST)
+                .venue(venue)
                 .build());
 
         Event event = Event.builder()
                 .name("Concurrency Booking Test")
                 .date(OffsetDateTime.now().plusDays(1))
-                .availableCapacity(10)
-                .totalCapacity(10)
-                .tenant(tenant)
+                .bookingPolicy(new BookingPolicy(10,10))
+                .venue(venue)
                 .build();
 
         event = eventRepository.save(event);
@@ -123,7 +122,7 @@ class CreateBookingConcurrencyTest {
                                 eventId,
                                 user,
                                 user,
-                                tenant,
+                                venue,
                                 1,
                                 false
                         );
@@ -158,7 +157,7 @@ class CreateBookingConcurrencyTest {
         assertEquals(1, bookings.size(), "Only one booking should exist");
 
         Event updatedEvent = eventRepository.findById(eventId).orElseThrow();
-        assertEquals(9, updatedEvent.getAvailableCapacity());
+        assertEquals(9, updatedEvent.getBookingPolicy().getAvailableCapacity());
 
         for (Exception ex : exceptions) {
             boolean valid = ex instanceof BookingAlreadyPresentException;

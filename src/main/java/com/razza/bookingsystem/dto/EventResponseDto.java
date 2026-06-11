@@ -1,12 +1,14 @@
 package com.razza.bookingsystem.dto;
 
+import com.razza.bookingsystem.domain.TimeSlot;
 import lombok.*;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * Data Transfer Object representing an event.
+ * Data Transfer Object representing a event.
  * Used to return event details as a response.
  */
 @Getter
@@ -15,9 +17,6 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class EventResponseDto {
-
-    /** Unique identifier for the event. */
-    private UUID id;
 
     /** Name/title of the event. */
     private String name;
@@ -32,8 +31,12 @@ public class EventResponseDto {
     private OffsetDateTime date;
 
     /** Total number of seats available for the event. */
-    private int totalCapacity;
+    private Integer totalCapacity;
 
     /** Number of seats still available for booking. */
-    private int availableCapacity;
+    private Integer availableCapacity;
+
+    private List<TimeSlot> schedule;
+
+    private Boolean eighteenPlus;
 }

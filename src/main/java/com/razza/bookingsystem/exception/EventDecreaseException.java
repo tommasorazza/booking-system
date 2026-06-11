@@ -1,10 +1,10 @@
 package com.razza.bookingsystem.exception;
 
 /**
- * Thrown when an attempt is made to decrease the capacity of an event
+ * Thrown when an attempt is made to decrease the capacity of a event
  * below the number of already confirmed bookings.
  *
- * This exception enforces the business rule that an event's capacity
+ * This exception enforces the business rule that a event's capacity
  * cannot be reduced if there are existing bookings.
  */
 public class EventDecreaseException extends RuntimeException {
