@@ -6,7 +6,6 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
@@ -16,7 +15,7 @@ import java.util.List;
 /**
  * Service responsible for handling JWT operations such as:
  * - token generation
- * - extracting claims (email|tenantName, role)
+ * - extracting claims (email|venueName, role)
  * - validating tokens
  *
  * This implementation uses HMAC SHA-256 for signing tokens.
@@ -34,7 +33,7 @@ public class JwtService {
      * Generates a JWT token for the given user.
      *
      * The token contains:
-     * - subject: "email|tenantName"
+     * - subject: "email|venueName"
      * - role: single user role without the ROLE_ prefix
      * - issued at timestamp
      * - expiration timestamp
@@ -42,8 +41,8 @@ public class JwtService {
      * @param userDetails authenticated user details
      * @return signed JWT token
      */
-    public String generateToken(UserDetails userDetails) {
-        Key key = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes());
+    public String generateToken(CustomUserDetails userDetails) {
+        Key key = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes());     // I just convert the jwtConfig secret into binary and then I wrap the binary values into a key object
 
         String role = userDetails.getAuthorities().stream()
                 .findFirst()
@@ -51,16 +50,16 @@ public class JwtService {
                 .orElse("");
 
         return Jwts.builder()
-                .setSubject(userDetails.getUsername())
+                .setSubject(userDetails.getUsername())      //these 4 first field are the data (header + payload)
                 .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtConfig.getExpiration()))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .signWith(key, SignatureAlgorithm.HS256)    //here the signature (key gets processed through an algorithm), gets added to header + payload and the jwt can be finally created
                 .compact();
     }
 
     /**
-     * Extracts the subject (email|tenantName) from the JWT token.
+     * Extracts the subject (email|venueName) from the JWT token.
      *
      * @param token JWT token
      * @return subject stored in the token
@@ -103,14 +102,14 @@ public class JwtService {
      * Validates the JWT token against the provided user details.
      *
      * A token is considered valid if:
-     * - the subject matches the user (email|tenantName)
+     * - the subject matches the user (email|venueName)
      * - the token is not expired
      *
      * @param token JWT token
      * @param userDetails user details to validate against
      * @return true if valid, false otherwise
      */
-    public boolean isTokenValid(String token, UserDetails userDetails) {
+    public boolean isTokenValid(String token, CustomUserDetails userDetails) {
         final String subject = extractSubject(token);
         return subject.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }

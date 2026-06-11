@@ -1,12 +1,15 @@
 package com.razza.bookingsystem.domain;
 
+import io.micrometer.common.lang.Nullable;
 import lombok.*;
 import jakarta.persistence.*;
+
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * Represents an event that users can book tickets for.
+ * Represents a event that users can book tickets for.
  * Contains details about the event and its capacity.
  */
 @Entity
@@ -17,7 +20,7 @@ import java.util.UUID;
 @Builder
 @Table(
         name = "event",
-        indexes = {@Index(name = "event_user_index", columnList = "tenantId")}
+        indexes = {@Index(name = "event_user_index", columnList = "venueId")}
 )
 public class Event {
 
@@ -38,23 +41,27 @@ public class Event {
     /** Date and time of the event. */
     private OffsetDateTime date;
 
-    /** Total number of tickets available for the event. */
-    private int totalCapacity;
-
-    /** Number of tickets still available for booking. */
-    private int availableCapacity;
+    @Nullable
+    @Embedded
+    private BookingPolicy bookingPolicy;
 
     /** Version field for optimistic locking. */
     @Version
     private Long version;
 
-    /** Tenant the event belongs to */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id")
-    private Tenant tenant;
+    /** Venue the event belongs to */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "venue_id")
+    private Venue venue;
 
     /** Status of the event (CONFIRMED/CANCELLED) */
     @Enumerated(EnumType.STRING)
     private Status status;
 
-}
+    @ElementCollection
+    @CollectionTable(name = "scheduleTable", joinColumns = @JoinColumn(name = "event_id"))
+    private List<TimeSlot> schedule;
+
+    private Boolean eighteenPlus;
+
+    }

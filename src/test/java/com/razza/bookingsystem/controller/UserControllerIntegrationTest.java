@@ -31,39 +31,40 @@ class UserControllerIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private JwtService jwtService;
-    @Autowired private TenantRepository tenantRepository;
+    @Autowired private VenueRepository venueRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private EventRepository eventRepository;
     @Autowired private BookingRepository bookingRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
-    private Tenant tenantA;
-    private Tenant tenantB;
+    private Venue venueA;
+    private Venue venueB;
     private User userA;
     private User adminA;
     private User userB;
 
     @BeforeEach
     void setUp() {
-        tenantA = tenantRepository.save(Tenant.builder().name("TenantA").build());
-        tenantB = tenantRepository.save(Tenant.builder().name("TenantB").build());
+        venueA = venueRepository.save(Venue.builder().name("VenueA").build());
+        venueB = venueRepository.save(Venue.builder().name("VenueB").build());
 
         userA = userRepository.save(User.builder()
                 .email("user@a.com").password(passwordEncoder.encode("pass"))
-                .role(Role.USER).tenant(tenantA).build());
+                .role(Role.GUEST).venue(venueA).build());
 
         adminA = userRepository.save(User.builder()
                 .email("admin@a.com").password(passwordEncoder.encode("pass"))
-                .role(Role.ADMIN).tenant(tenantA).build());
+                .role(Role.ADMIN).venue(venueA).build());
 
         userB = userRepository.save(User.builder()
                 .email("user@b.com").password(passwordEncoder.encode("pass"))
-                .role(Role.USER).tenant(tenantB).build());
+                .role(Role.GUEST).venue(venueB).build());
     }
 
     private String tokenFor(User user) {
         CustomUserDetails details = new CustomUserDetails(
-                user.getId(), user.getEmail(), user.getPassword(), user.getTenant(),
+                user.getId(), user.getName(), user.getBirthDate(), user.getEmail(), user.getPassword(),
+                user.getVenue(), user.getAvailability(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
         return "Bearer " + jwtService.generateToken(details);
     }
@@ -87,7 +88,7 @@ class UserControllerIntegrationTest {
 
     @Transactional
     @Test
-    void makeAdmin_adminSameTenant_returns200WithAdminRole() throws Exception {
+    void makeAdmin_adminSameVenue_returns200WithAdminRole() throws Exception {
         mockMvc.perform(put("/users/{id}", userA.getId())
                         .header("Authorization", tokenFor(adminA)))
                 .andExpect(status().isOk())
@@ -96,7 +97,7 @@ class UserControllerIntegrationTest {
 
     @Transactional
     @Test
-    void makeAdmin_adminDifferentTenant_returns404() throws Exception {
+    void makeAdmin_adminDifferentVenue_returns404() throws Exception {
         mockMvc.perform(put("/users/{id}", userB.getId())
                         .header("Authorization", tokenFor(adminA)))
                 .andExpect(status().isNotFound());
@@ -139,12 +140,17 @@ class UserControllerIntegrationTest {
     @Test
     void deleteUser_adminWithActiveBookings_returns409() throws Exception {
         Event event = eventRepository.save(Event.builder()
-                .name("E").description("d").location("l")
-                .date(OffsetDateTime.now().plusDays(1)).totalCapacity(10)
-                .availableCapacity(10).tenant(tenantA).status(Status.CONFIRMED).build());
+                .name("E")
+                .description("d")
+                .location("l")
+                .date(OffsetDateTime.now().plusDays(1))
+                .bookingPolicy(new BookingPolicy(10,10))
+                .venue(venueA)
+                .status(Status.CONFIRMED)
+                .build());
 
         bookingRepository.save(Booking.builder()
-                .user(userA).event(event).tenant(tenantA).quantity(1)
+                .user(userA).event(event).venue(venueA).quantity(1)
                 .status(Status.CONFIRMED).createdAt(OffsetDateTime.now()).build());
 
         mockMvc.perform(delete("/users/{id}", userA.getId())
@@ -154,7 +160,7 @@ class UserControllerIntegrationTest {
 
     @Transactional
     @Test
-    void deleteUser_adminDifferentTenant_returns404() throws Exception {
+    void deleteUser_adminDifferentVenue_returns404() throws Exception {
         mockMvc.perform(delete("/users/{id}", userB.getId())
                         .header("Authorization", tokenFor(adminA)))
                 .andExpect(status().isNotFound());

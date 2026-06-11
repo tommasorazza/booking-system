@@ -2,7 +2,7 @@ package com.razza.bookingsystem.exception;
 
 /**
  * Thrown when a user tries to book more seats than are currently available
- * for an event.
+ * for a event.
  *
  * This exception enforces the business rule that bookings cannot exceed
  * the event's available capacity.

@@ -1,10 +1,10 @@
 package com.razza.bookingsystem.exception;
 
 /**
- * Thrown when an attempt is made to delete an event that has
+ * Thrown when an attempt is made to delete a event that has
  * existing confirmed bookings.
  *
- * This exception enforces the business rule that an event
+ * This exception enforces the business rule that a event
  * cannot be deleted if there are existing bookings.
  */
 public class EventDeleteException extends RuntimeException {

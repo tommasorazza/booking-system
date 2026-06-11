@@ -5,8 +5,8 @@ import jakarta.persistence.*;
 import java.util.UUID;
 
 /**
- * Represents a tenant in the booking system.
- * Tenants can manage users and events independently.
+ * Represents a venue in the booking system.
+ * Venues can manage users and events independently.
  */
 @Entity
 @Getter
@@ -15,15 +15,15 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @Table(
-        name = "tenant"
+        name = "venue"
 )
-public class Tenant {
+public class Venue {
 
-    /** Primary key for the tenant. Generated as a UUID. */
+    /** Primary key for the venue. Generated as a UUID. */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /** Name of the tenant (like a company or organization name). */
+    /** Name of the venue (like a company or organization name). */
     private String name;
 }

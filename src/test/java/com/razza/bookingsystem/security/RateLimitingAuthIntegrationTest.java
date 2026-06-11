@@ -54,7 +54,7 @@ class RateLimitingAuthIntegrationTest {
         LoginRequest body = LoginRequest.builder()
                 .email("nonexistent@example.com")
                 .password("wrongpassword")
-                .tenantName("Tenant A")
+                .venueName("Venue A")
                 .build();
 
         for (int i = 0; i < 10; i++) {

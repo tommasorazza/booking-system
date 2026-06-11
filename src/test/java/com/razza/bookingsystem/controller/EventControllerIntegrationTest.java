@@ -35,14 +35,14 @@ class EventControllerIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private JwtService jwtService;
-    @Autowired private TenantRepository tenantRepository;
+    @Autowired private VenueRepository venueRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private EventRepository eventRepository;
     @Autowired private BookingRepository bookingRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
-    private Tenant tenantA;
-    private Tenant tenantB;
+    private Venue venueA;
+    private Venue venueB;
     private User userA;
     private User adminA;
     private User userB;
@@ -52,39 +52,54 @@ class EventControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        tenantA = tenantRepository.save(Tenant.builder().name("TenantA").build());
-        tenantB = tenantRepository.save(Tenant.builder().name("TenantB").build());
+        venueA = venueRepository.save(Venue.builder().name("VenueA").build());
+        venueB = venueRepository.save(Venue.builder().name("VenueB").build());
 
         userA = userRepository.save(User.builder()
                 .email("user@a.com").password(passwordEncoder.encode("pass"))
-                .role(Role.USER).tenant(tenantA).build());
+                .role(Role.GUEST).venue(venueA).build());
 
         adminA = userRepository.save(User.builder()
                 .email("admin@a.com").password(passwordEncoder.encode("pass"))
-                .role(Role.ADMIN).tenant(tenantA).build());
+                .role(Role.ADMIN).venue(venueA).build());
 
         userB = userRepository.save(User.builder()
                 .email("user@b.com").password(passwordEncoder.encode("pass"))
-                .role(Role.USER).tenant(tenantB).build());
+                .role(Role.GUEST).venue(venueB).build());
 
         eventA = eventRepository.save(Event.builder()
-                .name("Event A").description("desc").location("Location A")
-                .date(OffsetDateTime.now().plusDays(5)).totalCapacity(50)
-                .availableCapacity(50).tenant(tenantA).status(Status.CONFIRMED).build());
+                .name("Event A")
+                .description("desc")
+                .location("Location A")
+                .date(OffsetDateTime.now().plusDays(5))
+                .bookingPolicy(new BookingPolicy(50,50))
+                .venue(venueA)
+                .status(Status.CONFIRMED)
+                .build());
 
         eventB = eventRepository.save(Event.builder()
-                .name("Event B").description("desc").location("Location B")
-                .date(OffsetDateTime.now().plusDays(5)).totalCapacity(30)
-                .availableCapacity(30).tenant(tenantB).status(Status.CONFIRMED).build());
+                .name("Event B")
+                .description("desc")
+                .location("Location B")
+                .date(OffsetDateTime.now().plusDays(5))
+                .bookingPolicy(new BookingPolicy(30,30))
+                .venue(venueB)
+                .status(Status.CONFIRMED)
+                .build());
 
         validRequest = EventRequestDto.builder()
-                .name("New Event").description("A great event").location("Main Hall")
-                .date(OffsetDateTime.now().plusDays(10)).totalCapacity(100).build();
+                .name("New Event")
+                .description("A great event")
+                .location("Main Hall")
+                .date(OffsetDateTime.now().plusDays(10))
+                .totalCapacity(100)
+                .build();
     }
 
     private String tokenFor(User user) {
         CustomUserDetails details = new CustomUserDetails(
-                user.getId(), user.getEmail(), user.getPassword(), user.getTenant(),
+                user.getId(), user.getName(), user.getBirthDate(), user.getEmail(), user.getPassword(),
+                user.getVenue(), user.getAvailability(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
         return "Bearer " + jwtService.generateToken(details);
     }
@@ -133,7 +148,7 @@ class EventControllerIntegrationTest {
 
     @Transactional
     @Test
-    void getAllEvents_returnsOnlyOwnTenantEvents() throws Exception {
+    void getAllEvents_returnsOnlyOwnVenueEvents() throws Exception {
         mockMvc.perform(get("/events").header("Authorization", tokenFor(userA)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[?(@.name == 'Event A')]").exists())
@@ -151,7 +166,7 @@ class EventControllerIntegrationTest {
 
     @Transactional
     @Test
-    void getEventById_ownTenant_returns200() throws Exception {
+    void getEventById_ownVenue_returns200() throws Exception {
         mockMvc.perform(get("/events/{id}", eventA.getId())
                         .header("Authorization", tokenFor(userA)))
                 .andExpect(status().isOk())
@@ -160,7 +175,7 @@ class EventControllerIntegrationTest {
 
     @Transactional
     @Test
-    void getEventById_crossTenant_returns404() throws Exception {
+    void getEventById_crossVenue_returns404() throws Exception {
         mockMvc.perform(get("/events/{id}", eventB.getId())
                         .header("Authorization", tokenFor(userA)))
                 .andExpect(status().isNotFound());
@@ -213,7 +228,7 @@ class EventControllerIntegrationTest {
 
     @Transactional
     @Test
-    void updateEvent_crossTenant_returns404() throws Exception {
+    void updateEvent_crossVenue_returns404() throws Exception {
         mockMvc.perform(put("/events/{id}", eventB.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validRequest))
@@ -250,7 +265,7 @@ class EventControllerIntegrationTest {
     @Test
     void deleteEvent_adminWithActiveBookings_returns409() throws Exception {
         bookingRepository.save(Booking.builder()
-                .user(userA).event(eventA).tenant(tenantA).quantity(1)
+                .user(userA).event(eventA).venue(venueA).quantity(1)
                 .status(Status.CONFIRMED).createdAt(OffsetDateTime.now()).build());
 
         mockMvc.perform(delete("/events/{id}", eventA.getId())
@@ -260,7 +275,7 @@ class EventControllerIntegrationTest {
 
     @Transactional
     @Test
-    void deleteEvent_crossTenant_returns404() throws Exception {
+    void deleteEvent_crossVenue_returns404() throws Exception {
         mockMvc.perform(delete("/events/{id}", eventB.getId())
                         .header("Authorization", tokenFor(adminA)))
                 .andExpect(status().isNotFound());

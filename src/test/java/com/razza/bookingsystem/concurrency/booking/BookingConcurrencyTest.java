@@ -1,11 +1,12 @@
 package com.razza.bookingsystem.concurrency.booking;
 
+import com.razza.bookingsystem.domain.BookingPolicy;
 import com.razza.bookingsystem.domain.Event;
-import com.razza.bookingsystem.domain.Tenant;
+import com.razza.bookingsystem.domain.Venue;
 import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
-import com.razza.bookingsystem.repository.TenantRepository;
+import com.razza.bookingsystem.repository.VenueRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.service.BookingService;
 import org.junit.jupiter.api.AfterEach;
@@ -54,29 +55,28 @@ class BookingConcurrencyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private TenantRepository tenantRepository;
+    private VenueRepository venueRepository;
 
     @AfterEach
     void cleanup() {
         bookingRepository.deleteAll();
         eventRepository.deleteAll();
         userRepository.deleteAll();
-        tenantRepository.deleteAll();
+        venueRepository.deleteAll();
     }
     
     @Test
     void only_one_booking_should_succeed_when_one_seat_left() throws Exception {
 
-        Tenant tenant = new Tenant();
+        Venue venue = new Venue();
 
-        tenantRepository.save(tenant);
+        venueRepository.save(venue);
 
         Event event = Event.builder()
                 .name("Concurrency Test Event")
                 .date(OffsetDateTime.now().plusDays(1))
-                .availableCapacity(1)
-                .totalCapacity(1)
-                .tenant(tenant)
+                .bookingPolicy(new BookingPolicy(1))
+                .venue(venue)
                 .build();
 
         eventRepository.save(event);
@@ -85,7 +85,7 @@ class BookingConcurrencyTest {
 
         for (int i = 0; i < 10; i++) {
             User user = new User();
-            user.setTenant(tenant);
+            user.setVenue(venue);
             userRepository.save(user);
             users.add(user);
         }
@@ -110,7 +110,7 @@ class BookingConcurrencyTest {
                                 event.getId(),
                                 user,
                                 user,
-                                tenant,
+                                venue,
                                 1,
                                 false
                         );

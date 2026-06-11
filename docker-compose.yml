@@ -5,6 +5,7 @@ services:
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: passw0rd!
+      POSTGRES_DB: bookingsystem
       PGDATA: /data/postgres
     volumes:
       - db:/data/postgres

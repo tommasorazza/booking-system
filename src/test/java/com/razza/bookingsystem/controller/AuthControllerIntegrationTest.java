@@ -2,11 +2,11 @@ package com.razza.bookingsystem.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.razza.bookingsystem.domain.Role;
-import com.razza.bookingsystem.domain.Tenant;
+import com.razza.bookingsystem.domain.Venue;
 import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.LoginRequest;
 import com.razza.bookingsystem.dto.SignupRequest;
-import com.razza.bookingsystem.repository.TenantRepository;
+import com.razza.bookingsystem.repository.VenueRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,22 +31,22 @@ class AuthControllerIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
-    @Autowired private TenantRepository tenantRepository;
+    @Autowired private VenueRepository venueRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
-    private Tenant tenantA;
+    private Venue venueA;
     private User existingUser;
 
     @BeforeEach
     void setUp() {
-        tenantA = tenantRepository.save(Tenant.builder().name("TenantA").build());
+        venueA = venueRepository.save(Venue.builder().name("VenueA").build());
 
         existingUser = userRepository.save(User.builder()
                 .email("user@a.com")
                 .password(passwordEncoder.encode("correctpassword"))
-                .role(Role.USER)
-                .tenant(tenantA)
+                .role(Role.GUEST)
+                .venue(venueA)
                 .build());
     }
 
@@ -58,7 +58,7 @@ class AuthControllerIntegrationTest {
         SignupRequest request = SignupRequest.builder()
                 .email("newuser@a.com")
                 .password("securepassword")
-                .tenantName("TenantA")
+                .venueName("VenueA")
                 .build();
 
         mockMvc.perform(post("/auth/signup")
@@ -66,7 +66,7 @@ class AuthControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("newuser@a.com"))
-                .andExpect(jsonPath("$.role").value("USER"));
+                .andExpect(jsonPath("$.role").value("GUEST"));
     }
 
     @Transactional
@@ -75,7 +75,7 @@ class AuthControllerIntegrationTest {
         SignupRequest request = SignupRequest.builder()
                 .email("user@a.com")        // already exists in setUp()
                 .password("anypassword")
-                .tenantName("TenantA")
+                .venueName("VenueA")
                 .build();
 
         mockMvc.perform(post("/auth/signup")
@@ -86,11 +86,11 @@ class AuthControllerIntegrationTest {
 
     @Transactional
     @Test
-    void signup_nonExistentTenant_returns404() throws Exception {
+    void signup_nonExistentVenue_returns404() throws Exception {
         SignupRequest request = SignupRequest.builder()
                 .email("ghost@nowhere.com")
                 .password("anypassword")
-                .tenantName("NonExistentTenant")
+                .venueName("NonExistentVenue")
                 .build();
 
         mockMvc.perform(post("/auth/signup")
@@ -107,7 +107,7 @@ class AuthControllerIntegrationTest {
         LoginRequest request = LoginRequest.builder()
                 .email("user@a.com")
                 .password("correctpassword")
-                .tenantName("TenantA")
+                .venueName("VenueA")
                 .build();
 
         mockMvc.perform(post("/auth/login")
@@ -123,7 +123,7 @@ class AuthControllerIntegrationTest {
         LoginRequest request = LoginRequest.builder()
                 .email("user@a.com")
                 .password("wrongpassword")
-                .tenantName("TenantA")
+                .venueName("VenueA")
                 .build();
 
         mockMvc.perform(post("/auth/login")
@@ -138,7 +138,7 @@ class AuthControllerIntegrationTest {
         LoginRequest request = LoginRequest.builder()
                 .email("nobody@a.com")
                 .password("anypassword")
-                .tenantName("TenantA")
+                .venueName("VenueA")
                 .build();
 
         mockMvc.perform(post("/auth/login")
@@ -149,14 +149,14 @@ class AuthControllerIntegrationTest {
 
     @Transactional
     @Test
-    void login_wrongTenant_returns401() throws Exception {
-        // user@a.com exists in TenantA, not TenantB
-        tenantRepository.save(Tenant.builder().name("TenantB").build());
+    void login_wrongVenue_returns401() throws Exception {
+        // user@a.com exists in VenueA, not VenueB
+        venueRepository.save(Venue.builder().name("VenueB").build());
 
         LoginRequest request = LoginRequest.builder()
                 .email("user@a.com")
                 .password("correctpassword")
-                .tenantName("TenantB")
+                .venueName("VenueB")
                 .build();
 
         mockMvc.perform(post("/auth/login")

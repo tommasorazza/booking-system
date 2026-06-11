@@ -30,14 +30,14 @@ class BookingControllerIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private JwtService jwtService;
-    @Autowired private TenantRepository tenantRepository;
+    @Autowired private VenueRepository venueRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private EventRepository eventRepository;
     @Autowired private BookingRepository bookingRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
-    private Tenant tenantA;
-    private Tenant tenantB;
+    private Venue venueA;
+    private Venue venueB;
     private User userA;
     private User adminA;
     private User userB;
@@ -47,39 +47,55 @@ class BookingControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        tenantA = tenantRepository.save(Tenant.builder().name("TenantA").build());
-        tenantB = tenantRepository.save(Tenant.builder().name("TenantB").build());
+        venueA = venueRepository.save(Venue.builder().name("VenueA").build());
+        venueB = venueRepository.save(Venue.builder().name("VenueB").build());
 
         userA = userRepository.save(User.builder()
                 .email("user@a.com").password(passwordEncoder.encode("pass"))
-                .role(Role.USER).tenant(tenantA).build());
+                .role(Role.GUEST).venue(venueA).build());
 
         adminA = userRepository.save(User.builder()
                 .email("admin@a.com").password(passwordEncoder.encode("pass"))
-                .role(Role.ADMIN).tenant(tenantA).build());
+                .role(Role.ADMIN).venue(venueA).build());
 
         userB = userRepository.save(User.builder()
                 .email("user@b.com").password(passwordEncoder.encode("pass"))
-                .role(Role.USER).tenant(tenantB).build());
+                .role(Role.GUEST).venue(venueB).build());
 
         eventA = eventRepository.save(Event.builder()
-                .name("Concert A").description("desc").location("Venue A")
-                .date(OffsetDateTime.now().plusDays(3)).totalCapacity(100)
-                .availableCapacity(100).tenant(tenantA).status(Status.CONFIRMED).build());
+                .name("Concert A")
+                .description("desc")
+                .location("Venue A")
+                .date(OffsetDateTime.now().plusDays(3))
+                .bookingPolicy(new BookingPolicy(100,100))
+                .venue(venueA)
+                .status(Status.CONFIRMED)
+                .build());
 
         eventB = eventRepository.save(Event.builder()
-                .name("Concert B").description("desc").location("Venue B")
-                .date(OffsetDateTime.now().plusDays(3)).totalCapacity(50)
-                .availableCapacity(50).tenant(tenantB).status(Status.CONFIRMED).build());
+                .name("Concert B")
+                .description("desc")
+                .location("Venue B")
+                .date(OffsetDateTime.now().plusDays(3))
+                .bookingPolicy(new BookingPolicy(50,50))
+                .venue(venueB)
+                .status(Status.CONFIRMED)
+                .build());
 
         bookingA = bookingRepository.save(Booking.builder()
-                .user(userA).event(eventA).tenant(tenantA).quantity(2)
-                .status(Status.CONFIRMED).createdAt(OffsetDateTime.now()).build());
+                .user(userA)
+                .event(eventA)
+                .venue(venueA)
+                .quantity(2)
+                .status(Status.CONFIRMED)
+                .createdAt(OffsetDateTime.now())
+                .build());
     }
 
     private String tokenFor(User user) {
         CustomUserDetails details = new CustomUserDetails(
-                user.getId(), user.getEmail(), user.getPassword(), user.getTenant(),
+                user.getId(), user.getName(), user.getBirthDate(), user.getEmail(), user.getPassword(),
+                user.getVenue(),user.getAvailability(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
         return "Bearer " + jwtService.generateToken(details);
     }
@@ -97,9 +113,14 @@ class BookingControllerIntegrationTest {
     @Test
     void createBooking_authenticatedUser_returns200() throws Exception {
         Event freshEvent = eventRepository.save(Event.builder()
-                .name("Fresh").description("d").location("l")
-                .date(OffsetDateTime.now().plusDays(5)).totalCapacity(10)
-                .availableCapacity(10).tenant(tenantA).status(Status.CONFIRMED).build());
+                .name("Fresh")
+                .description("d")
+                .location("l")
+                .date(OffsetDateTime.now().plusDays(5))
+                .bookingPolicy(new BookingPolicy(10,10))
+                .venue(venueA)
+                .status(Status.CONFIRMED)
+                .build());
 
         mockMvc.perform(post("/bookings/{id}/book", freshEvent.getId())
                         .param("quantity", "1")
@@ -111,7 +132,7 @@ class BookingControllerIntegrationTest {
 
     @Transactional
     @Test
-    void createBooking_crossTenant_returns404() throws Exception {
+    void createBooking_crossVenue_returns404() throws Exception {
         mockMvc.perform(post("/bookings/{id}/book", eventB.getId())
                         .param("quantity", "1")
                         .header("Authorization", tokenFor(userA)))
@@ -120,11 +141,16 @@ class BookingControllerIntegrationTest {
 
     @Transactional
     @Test
-    void createBooking_adminOnBehalfOfUserSameTenant_returns200() throws Exception {
+    void createBooking_adminOnBehalfOfUserSameVenue_returns200() throws Exception {
         Event freshEvent = eventRepository.save(Event.builder()
-                .name("Admin Booking").description("d").location("l")
-                .date(OffsetDateTime.now().plusDays(5)).totalCapacity(10)
-                .availableCapacity(10).tenant(tenantA).status(Status.CONFIRMED).build());
+                .name("Admin Booking")
+                .description("d")
+                .location("l")
+                .date(OffsetDateTime.now().plusDays(5))
+                .bookingPolicy(new BookingPolicy(10,10))
+                .venue(venueA)
+                .status(Status.CONFIRMED)
+                .build());
 
         mockMvc.perform(post("/bookings/{id}/book", freshEvent.getId())
                         .param("quantity", "2")
@@ -136,7 +162,7 @@ class BookingControllerIntegrationTest {
 
     @Transactional
     @Test
-    void createBooking_adminOnBehalfOfUserDifferentTenant_returns404() throws Exception {
+    void createBooking_adminOnBehalfOfUserDifferentVenue_returns404() throws Exception {
         mockMvc.perform(post("/bookings/{id}/book", eventA.getId())
                         .param("quantity", "1")
                         .param("userId", userB.getId().toString())
@@ -167,7 +193,7 @@ class BookingControllerIntegrationTest {
 
     @Transactional
     @Test
-    void modifyQuantity_crossTenantUser_returns404() throws Exception {
+    void modifyQuantity_crossVenueUser_returns404() throws Exception {
         mockMvc.perform(put("/bookings/{id}", bookingA.getId())
                         .param("quantity", "1")
                         .header("Authorization", tokenFor(userB)))
@@ -203,10 +229,10 @@ class BookingControllerIntegrationTest {
 
     @Transactional
     @Test
-    void cancelBooking_nonOwnerSameTenant_returns403() throws Exception {
+    void cancelBooking_nonOwnerSameVenue_returns403() throws Exception {
         User otherUser = userRepository.save(User.builder()
                 .email("other@a.com").password(passwordEncoder.encode("pass"))
-                .role(Role.USER).tenant(tenantA).build());
+                .role(Role.GUEST).venue(venueA).build());
 
         mockMvc.perform(delete("/bookings/{id}", bookingA.getId())
                         .header("Authorization", tokenFor(otherUser)))
@@ -223,7 +249,7 @@ class BookingControllerIntegrationTest {
 
     @Transactional
     @Test
-    void cancelBooking_crossTenant_returns404() throws Exception {
+    void cancelBooking_crossVenue_returns404() throws Exception {
         mockMvc.perform(delete("/bookings/{id}", bookingA.getId())
                         .header("Authorization", tokenFor(userB)))
                 .andExpect(status().isNotFound());
@@ -259,7 +285,7 @@ class BookingControllerIntegrationTest {
 
     @Transactional
     @Test
-    void getUserBookings_adminQueryCrossTenantUser_returns404() throws Exception {
+    void getUserBookings_adminQueryCrossVenueUser_returns404() throws Exception {
         mockMvc.perform(get("/bookings/userBookings")
                         .param("userId", userB.getId().toString())
                         .header("Authorization", tokenFor(adminA)))

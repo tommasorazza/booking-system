@@ -1,11 +1,14 @@
 package com.razza.bookingsystem.dto;
 
+import com.razza.bookingsystem.domain.TimeSlot;
+import io.micrometer.common.lang.Nullable;
 import lombok.*;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
- * Data Transfer Object representing an event.
+ * Data Transfer Object representing a event.
  * Used for creating or updating events.
  */
 @Getter
@@ -28,6 +31,10 @@ public class EventRequestDto {
     private OffsetDateTime date;
 
     /** Total number of seats available for the event. */
-    private int totalCapacity;
+    @Nullable
+    private Integer totalCapacity;
 
+    private List<TimeSlot> schedule;
+
+    private Boolean eighteenPlus;
 }

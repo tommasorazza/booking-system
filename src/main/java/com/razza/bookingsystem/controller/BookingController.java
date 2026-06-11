@@ -26,7 +26,7 @@ public class BookingController {
     private final UserRepository userRepository;
 
     /**
-     * Creates a new booking for an event.
+     * Creates a new booking for a event.
      *
      * If the authenticated user is an admin, a booking can be created on behalf of another user.
      * Otherwise, the booking is created for the authenticated user.
@@ -58,7 +58,7 @@ public class BookingController {
                 eventId,
                 targetUser,
                 currentUser,
-                user.getTenant(),
+                user.getVenue(),
                 quantity,
                 isAdmin
         );
@@ -67,7 +67,7 @@ public class BookingController {
     /**
      * Updates the quantity of an existing booking.
      *
-     * Users can modify their own bookings. Admins can modify any booking within their tenant.
+     * Users can modify their own bookings. Admins can modify any booking within their venue.
      *
      * @param bookingId the ID of the booking to update
      * @param quantity the new quantity of tickets
@@ -77,9 +77,7 @@ public class BookingController {
     @PutMapping("/bookings/{bookingId}")
     public BookingDto modifyQuantity(@PathVariable UUID bookingId,
                                      @RequestParam int quantity,
-                                     Authentication authentication) {
-
-        CustomUserDetails user = getUser(authentication);
+                                     @AuthenticationPrincipal CustomUserDetails user) {
 
         User currentUser = userRepository.findById(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("user", user.getId()));
@@ -87,16 +85,16 @@ public class BookingController {
         return bookingService.modifyQuantity(
                 bookingId,
                 currentUser,
-                user.getTenant(),
+                user.getVenue(),
                 quantity,
-                isAdmin(authentication)
+                isAdmin(user)
         );
     }
 
     /**
      * Cancels a booking.
      *
-     * Users can cancel their own bookings. Admins can cancel any booking within their tenant.
+     * Users can cancel their own bookings. Admins can cancel any booking within their venue.
      *
      * @param id the ID of the booking to cancel
      * @param authentication the current authenticated user
@@ -111,8 +109,8 @@ public class BookingController {
         bookingService.cancelBooking(
                 id,
                 currentUser,
-                user.getTenant(),
-                isAdmin(authentication)
+                user.getVenue(),
+                isAdmin(user)
         );
     }
 
@@ -128,15 +126,13 @@ public class BookingController {
      */
     @GetMapping("/bookings/userBookings")
     public List<BookingDto> getUserBookings(@RequestParam(required = false) UUID userId,
-                                            Authentication authentication) {
-
-        CustomUserDetails user = getUser(authentication);
+                                            @AuthenticationPrincipal CustomUserDetails user) {
 
         return bookingService.getUserBookings(
                 userId,
                 user.getId(),
-                user.getTenant(),
-                isAdmin(authentication)
+                user.getVenue(),
+                isAdmin(user)
         );
     }
 
@@ -169,8 +165,8 @@ public class BookingController {
      * @param auth the Authentication object
      * @return true if the user has ROLE_ADMIN, false otherwise
      */
-    private boolean isAdmin(Authentication auth) {
-        return auth.getAuthorities()
+    private boolean isAdmin(CustomUserDetails user) {
+        return user.getAuthorities()
                 .stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }

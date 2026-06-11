@@ -20,21 +20,21 @@ class RepositoryQueryTest {
 
     @Autowired private BookingRepository bookingRepository;
     @Autowired private EventRepository eventRepository;
-    @Autowired private TenantRepository tenantRepository;
+    @Autowired private VenueRepository venueRepository;
     @Autowired private UserRepository userRepository;
 
     @Autowired private EntityManager entityManager;
 
-    private Tenant tenant;
+    private Venue venue;
     private User user;
     private Event event;
 
     @BeforeEach
     void setUp() {
 
-        tenant = tenantRepository.saveAndFlush(
-                Tenant.builder()
-                        .name("tenant 1")
+        venue = venueRepository.saveAndFlush(
+                Venue.builder()
+                        .name("venue 1")
                         .build()
         );
 
@@ -42,8 +42,8 @@ class RepositoryQueryTest {
                 User.builder()
                         .email("user@example.com")
                         .password("password")
-                        .role(Role.USER)
-                        .tenant(tenant)
+                        .role(Role.GUEST)
+                        .venue(venue)
                         .build()
         );
 
@@ -53,9 +53,8 @@ class RepositoryQueryTest {
                         .description("desc")
                         .location("loc")
                         .date(OffsetDateTime.now().plusDays(5))
-                        .totalCapacity(10)
-                        .availableCapacity(10)
-                        .tenant(tenant)
+                        .bookingPolicy(new BookingPolicy(10,10))
+                        .venue(venue)
                         .status(Status.CONFIRMED)
                         .build()
         );
@@ -74,7 +73,7 @@ class RepositoryQueryTest {
 
         Event updated = eventRepository.findById(event.getId()).orElseThrow();
 
-        assertThat(updated.getAvailableCapacity()).isEqualTo(7);
+        assertThat(updated.getBookingPolicy().getAvailableCapacity()).isEqualTo(7);
     }
 
     @Transactional
@@ -89,7 +88,7 @@ class RepositoryQueryTest {
 
         Event updated = eventRepository.findById(event.getId()).orElseThrow();
 
-        assertThat(updated.getAvailableCapacity()).isEqualTo(0);
+        assertThat(updated.getBookingPolicy().getAvailableCapacity()).isEqualTo(0);
     }
 
     @Transactional
@@ -104,7 +103,7 @@ class RepositoryQueryTest {
 
         Event updated = eventRepository.findById(event.getId()).orElseThrow();
 
-        assertThat(updated.getAvailableCapacity()).isEqualTo(10);
+        assertThat(updated.getBookingPolicy().getAvailableCapacity()).isEqualTo(10);
     }
 
     @Transactional
@@ -127,7 +126,7 @@ class RepositoryQueryTest {
                 Booking.builder()
                         .user(user)
                         .event(event)
-                        .tenant(tenant)
+                        .venue(venue)
                         .quantity(1)
                         .status(Status.CONFIRMED)
                         .createdAt(OffsetDateTime.now())
@@ -151,7 +150,7 @@ class RepositoryQueryTest {
                 Booking.builder()
                         .user(user)
                         .event(event)
-                        .tenant(tenant)
+                        .venue(venue)
                         .quantity(1)
                         .status(Status.CANCELLED)
                         .createdAt(OffsetDateTime.now())

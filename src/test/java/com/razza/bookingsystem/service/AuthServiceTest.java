@@ -1,13 +1,13 @@
 package com.razza.bookingsystem.service;
 
 import com.razza.bookingsystem.domain.Role;
-import com.razza.bookingsystem.domain.Tenant;
+import com.razza.bookingsystem.domain.Venue;
 import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.UserDto;
 import com.razza.bookingsystem.exception.ResourceNotFoundException;
 import com.razza.bookingsystem.exception.UserAlreadyExistsException;
 import com.razza.bookingsystem.mapper.UserMapper;
-import com.razza.bookingsystem.repository.TenantRepository;
+import com.razza.bookingsystem.repository.VenueRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.security.CustomUserDetails;
 import com.razza.bookingsystem.security.JwtService;
@@ -26,6 +26,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,10 +42,10 @@ import static org.mockito.Mockito.*;
  * Uses Mockito to isolate the service from its dependencies:
  * {@link UserRepository}, {@link UserMapper}, {@link PasswordEncoder},
  * {@link JwtService}, {@link AuthenticationManager},
- * {@link CustomUserDetailsService}, and {@link TenantRepository}.
+ * {@link CustomUserDetailsService}, and {@link VenueRepository}.
  *
  * Test groups:
- * signup - registration, validation, tenant scoping, and password encoding
+ * signup - registration, validation, venue scoping, and password encoding
  * login  - authentication, token generation, and credential handling
  */
 @ExtendWith(MockitoExtension.class)
@@ -55,23 +56,23 @@ class AuthServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private AuthenticationManager authenticationManager;
-    @Mock private TenantRepository tenantRepository;
+    @Mock private VenueRepository venueRepository;
 
     @InjectMocks
     private AuthService authService;
 
-    private Tenant tenant;
+    private Venue venue;
     private User user;
     private UserDto userDto;
 
     /**
      * Sets up shared fixtures used across multiple test cases.
-     * Creates a tenant, a user belonging to that tenant, and the
+     * Creates a venue, a user belonging to that venue, and the
      * corresponding UserDto.
      */
     @BeforeEach
     void setUp() {
-        tenant = Tenant.builder()
+        venue = Venue.builder()
                 .id(UUID.randomUUID())
                 .name("acme")
                 .build();
@@ -80,14 +81,14 @@ class AuthServiceTest {
                 .id(UUID.randomUUID())
                 .email("user@example.com")
                 .password("hashedPassword")
-                .role(Role.USER)
-                .tenant(tenant)
+                .role(Role.GUEST)
+                .venue(venue)
                 .build();
 
         userDto = UserDto.builder()
                 .id(user.getId())
                 .email(user.getEmail())
-                .role(Role.USER)
+                .role(Role.GUEST)
                 .build();
     }
 
@@ -99,17 +100,17 @@ class AuthServiceTest {
     @Transactional
     @Test
     void signup_success_returnsUserDto() {
-        when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
-        when(userRepository.findByEmailAndTenant("user@example.com", tenant)).thenReturn(Optional.empty());
+        when(venueRepository.findByName("acme")).thenReturn(Optional.of(venue));
+        when(userRepository.findByEmailAndVenue("user@example.com", venue)).thenReturn(Optional.empty());
         when(passwordEncoder.encode("plainPassword")).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(userMapper.toDto(user)).thenReturn(userDto);
 
-        UserDto result = authService.signup("user@example.com", "plainPassword", "acme");
+        UserDto result = authService.signup("user", OffsetDateTime.parse("2000-01-01T12:00:00+02:00"), "user@example.com", "plainPassword", Role.GUEST, "acme", null, null);
 
         assertThat(result).isNotNull();
         assertThat(result.getEmail()).isEqualTo("user@example.com");
-        assertThat(result.getRole()).isEqualTo(Role.USER);
+        assertThat(result.getRole()).isEqualTo(Role.GUEST);
     }
 
     /**
@@ -120,13 +121,13 @@ class AuthServiceTest {
     @Transactional
     @Test
     void signup_encodesPasswordBeforeSaving() {
-        when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
-        when(userRepository.findByEmailAndTenant(any(), any())).thenReturn(Optional.empty());
+        when(venueRepository.findByName("acme")).thenReturn(Optional.of(venue));
+        when(userRepository.findByEmailAndVenue(any(), any())).thenReturn(Optional.empty());
         when(passwordEncoder.encode("plainPassword")).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(userMapper.toDto(user)).thenReturn(userDto);
 
-        authService.signup("user@example.com", "plainPassword", "acme");
+        UserDto result = authService.signup("user", OffsetDateTime.parse("2000-01-01T12:00:00+02:00"), "user@example.com", "plainPassword", Role.GUEST, "acme", null, null);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class); // user class is specified two times since the second one is for runtime
         verify(userRepository).save(captor.capture());                     // here it's verified that when the user is saved into repository and DB, the password is already hashed, using the result of stubbing eventRepository.save(event) would not work since the result of that is the initialized user, while what we want is the actual object passed to save()
@@ -134,60 +135,60 @@ class AuthServiceTest {
     }
 
     /**
-     * Verifies that the service always assigns {@link Role#USER} to a newly
+     * Verifies that the service always assigns {@link Role#GUEST} to a newly
      * registered user, regardless of any external input. Uses an
      * ArgumentCaptor to inspect the User object passed to the repository.
      */
     @Transactional
     @Test
     void signup_assignsUserRoleAutomatically() {
-        when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
-        when(userRepository.findByEmailAndTenant(any(), any())).thenReturn(Optional.empty());
+        when(venueRepository.findByName("acme")).thenReturn(Optional.of(venue));
+        when(userRepository.findByEmailAndVenue(any(), any())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(any())).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(userMapper.toDto(user)).thenReturn(userDto);
 
-        authService.signup("user@example.com", "plainPassword", "acme");
+        UserDto result = authService.signup("user", OffsetDateTime.parse("2000-01-01T12:00:00+02:00"), "user@example.com", "plainPassword", Role.GUEST, "acme", null, null);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
-        assertThat(captor.getValue().getRole()).isEqualTo(Role.USER);
+        assertThat(captor.getValue().getRole()).isEqualTo(Role.GUEST);
     }
 
     /**
-     * Verifies that the resolved tenant is assigned to the user before
+     * Verifies that the resolved venue is assigned to the user before
      * persisting. Uses an ArgumentCaptor to inspect the User object passed
      * to the repository.
      */
     @Transactional
     @Test
-    void signup_assignsTenantToUser() {
-        when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
-        when(userRepository.findByEmailAndTenant(any(), any())).thenReturn(Optional.empty());
+    void signup_assignsVenueToUser() {
+        when(venueRepository.findByName("acme")).thenReturn(Optional.of(venue));
+        when(userRepository.findByEmailAndVenue(any(), any())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(any())).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(userMapper.toDto(user)).thenReturn(userDto);
 
-        authService.signup("user@example.com", "plainPassword", "acme");
+        UserDto result = authService.signup("user", OffsetDateTime.parse("2000-01-01T12:00:00+02:00"), "user@example.com", "plainPassword", Role.GUEST, "acme", null, null);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
-        assertThat(captor.getValue().getTenant()).isEqualTo(tenant);
+        assertThat(captor.getValue().getVenue()).isEqualTo(venue);
     }
 
     /**
      * Verifies that a {@link UserAlreadyExistsException} is thrown — and no
      * save is attempted — when the email address is already registered within
-     * the same tenant. The exception message must contain the duplicate email.
+     * the same venue. The exception message must contain the duplicate email.
      */
     @Transactional
     @Test
-    void signup_throwsUserAlreadyExistsException_whenEmailAlreadyRegisteredInTenant() {
-        when(tenantRepository.findByName("acme")).thenReturn(Optional.of(tenant));
-        when(userRepository.findByEmailAndTenant("user@example.com", tenant))
+    void signup_throwsUserAlreadyExistsException_whenEmailAlreadyRegisteredInVenue() {
+        when(venueRepository.findByName("acme")).thenReturn(Optional.of(venue));
+        when(userRepository.findByEmailAndVenue("user@example.com", venue))
                 .thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.signup("user@example.com", "plainPassword", "acme"))
+        assertThatThrownBy(() -> authService.signup("user", OffsetDateTime.parse("2000-01-01T12:00:00+02:00"), "user@example.com", "plainPassword", Role.GUEST, "acme", null, null))
                 .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessageContaining("user@example.com");
 
@@ -196,43 +197,43 @@ class AuthServiceTest {
 
     /**
      * Verifies that a {@link ResourceNotFoundException} is thrown — and no
-     * save is attempted — when the supplied tenant name does not match any
-     * existing tenant. The exception message must reference "tenant".
+     * save is attempted — when the supplied venue name does not match any
+     * existing venue. The exception message must reference "venue".
      */
     @Transactional
     @Test
-    void signup_throwsResourceNotFoundException_whenTenantDoesNotExist() {
-        when(tenantRepository.findByName("unknown")).thenReturn(Optional.empty());
+    void signup_throwsResourceNotFoundException_whenVenueDoesNotExist() {
+        when(venueRepository.findByName("unknown")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.signup("user@example.com", "plainPassword", "unknown"))
+        assertThatThrownBy(() -> authService.signup("user", OffsetDateTime.parse("2000-01-01T12:00:00+02:00"), "user@example.com", "plainPassword", Role.GUEST, "acme", null, null))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("tenant");
+                .hasMessageContaining("venue");
 
         verify(userRepository, never()).save(any());
     }
 
     /**
      * Verifies that the same email address can be registered in two different
-     * tenants without triggering a {@link UserAlreadyExistsException}.
-     * Email uniqueness is scoped per tenant, not globally.
+     * venues without triggering a {@link UserAlreadyExistsException}.
+     * Email uniqueness is scoped per venue, not globally.
      */
     @Transactional
     @Test
-    void signup_sameEmail_differentTenant_doesNotThrow() {
-        Tenant otherTenant = Tenant.builder().id(UUID.randomUUID()).name("other").build();
-        when(tenantRepository.findByName("other")).thenReturn(Optional.of(otherTenant));
-        when(userRepository.findByEmailAndTenant("user@example.com", otherTenant))
+    void signup_sameEmail_differentVenue_doesNotThrow() {
+        Venue otherVenue = Venue.builder().id(UUID.randomUUID()).name("other").build();
+        when(venueRepository.findByName("other")).thenReturn(Optional.of(otherVenue));
+        when(userRepository.findByEmailAndVenue("user@example.com", otherVenue))
                 .thenReturn(Optional.empty());
         when(passwordEncoder.encode(any())).thenReturn("hashedPassword");
         User otherUser = User.builder()
                 .id(UUID.randomUUID()).email("user@example.com")
-                .password("hashedPassword").role(Role.USER).tenant(otherTenant).build();
+                .password("hashedPassword").role(Role.GUEST).venue(otherVenue).build();
         UserDto otherDto = UserDto.builder()
-                .id(otherUser.getId()).email("user@example.com").role(Role.USER).build();
+                .id(otherUser.getId()).email("user@example.com").role(Role.GUEST).build();
         when(userRepository.save(any())).thenReturn(otherUser);
         when(userMapper.toDto(otherUser)).thenReturn(otherDto);
 
-        UserDto result = authService.signup("user@example.com", "pass", "other");
+        UserDto result = authService.signup("user", OffsetDateTime.parse("2000-01-01T12:00:00+02:00"), "user@example.com", "plainPassword", Role.GUEST, "other", null, null);
 
         assertThat(result.getEmail()).isEqualTo("user@example.com");
     }
@@ -245,8 +246,9 @@ class AuthServiceTest {
     @Test
     void login_success_returnsJwtToken() {
         CustomUserDetails userDetails = new CustomUserDetails(
-                user.getId(), user.getEmail(), user.getPassword(), tenant,
-                List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                user.getId(), user.getName(), user.getBirthDate(), user.getEmail(), user.getPassword(),
+                venue, user.getAvailability(),
+                List.of(new SimpleGrantedAuthority("ROLE_GUEST")));
 
         Authentication auth = mock(Authentication.class);
         when(auth.getPrincipal()).thenReturn(userDetails);
@@ -260,17 +262,18 @@ class AuthServiceTest {
     }
 
     /**
-     * Verifies that the service builds a tenant-scoped username in the format
-     * "email|tenantName" when constructing the authentication token passed to
+     * Verifies that the service builds a venue-scoped username in the format
+     * "email|venueName" when constructing the authentication token passed to
      * the {@link AuthenticationManager}. This ensures credentials are always
-     * resolved within the correct tenant context.
+     * resolved within the correct venue context.
      */
     @Transactional
     @Test
-    void login_buildsTenantScopedUsernameForAuthentication() {
+    void login_buildsVenueScopedUsernameForAuthentication() {
         CustomUserDetails userDetails = new CustomUserDetails(
-                user.getId(), user.getEmail(), user.getPassword(), tenant,
-                List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                user.getId(), user.getName(), user.getBirthDate(), user.getEmail(), user.getPassword(),
+                venue, user.getAvailability(),
+                List.of(new SimpleGrantedAuthority("ROLE_GUEST")));
 
         Authentication auth = mock(Authentication.class);
         when(auth.getPrincipal()).thenReturn(userDetails);
@@ -312,8 +315,9 @@ class AuthServiceTest {
     @Test
     void login_delegatesTokenGenerationToJwtService() {
         CustomUserDetails userDetails = new CustomUserDetails(
-                user.getId(), user.getEmail(), user.getPassword(), tenant,
-                List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                user.getId(), user.getName(), user.getBirthDate(), user.getEmail(), user.getPassword(),
+                venue, user.getAvailability(),
+                List.of(new SimpleGrantedAuthority("ROLE_GUEST")));
 
         Authentication auth = mock(Authentication.class);
         when(auth.getPrincipal()).thenReturn(userDetails);

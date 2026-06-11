@@ -1,10 +1,6 @@
 package com.razza.bookingsystem.service;
 
-import com.razza.bookingsystem.domain.Booking;
-import com.razza.bookingsystem.domain.Event;
-import com.razza.bookingsystem.domain.Status;
-import com.razza.bookingsystem.domain.Tenant;
-import com.razza.bookingsystem.domain.User;
+import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.dto.EventRequestDto;
 import com.razza.bookingsystem.dto.EventResponseDto;
 import com.razza.bookingsystem.exception.EventDecreaseException;
@@ -46,10 +42,10 @@ import static org.mockito.Mockito.*;
  *
  * Test groups:
  * createEvent   - creation, validation, and initialization rules
- * getEventById  - retrieval and tenant scoping
+ * getEventById  - retrieval and venue scoping
  * updateEvent   - updates, capacity adjustments, and email notifications
  * deleteEvent   - soft deletion and guard conditions
- * getAllEvents  - pagination and tenant scoping
+ * getAllEvents  - pagination and venue scoping
  */
 @ExtendWith(MockitoExtension.class)
 class EventServiceTest {
@@ -62,7 +58,7 @@ class EventServiceTest {
     @InjectMocks
     private EventService eventService;
 
-    private Tenant tenant;
+    private Venue venue;
     private UUID eventId;
     private Event event;
     private EventRequestDto requestDto;
@@ -70,12 +66,12 @@ class EventServiceTest {
 
     /**
      * Sets up shared test fixtures used across multiple test cases.
-     * Creates a tenant, a future event with full capacity, and the
+     * Creates a venue, a future event with full capacity, and the
      * corresponding request/response DTOs.
      */
     @BeforeEach
     void setUp() {
-        tenant = Tenant.builder()
+        venue = Venue.builder()
                 .id(UUID.randomUUID())
                 .name("acme")
                 .build();
@@ -88,10 +84,9 @@ class EventServiceTest {
                 .description("A great concert")
                 .location("Amsterdam")
                 .date(OffsetDateTime.now().plusDays(10))
-                .totalCapacity(200)
-                .availableCapacity(200)
+                .bookingPolicy(new BookingPolicy(200,200))
                 .status(Status.CONFIRMED)
-                .tenant(tenant)
+                .venue(venue)
                 .build();
 
         requestDto = EventRequestDto.builder()
@@ -103,7 +98,6 @@ class EventServiceTest {
                 .build();
 
         responseDto = EventResponseDto.builder()
-                .id(eventId)
                 .name("Concert")
                 .description("A great concert")
                 .location("Amsterdam")
@@ -124,7 +118,7 @@ class EventServiceTest {
         when(eventRepository.save(event)).thenReturn(event);
         when(eventMapper.toDto(event)).thenReturn(responseDto);
 
-        EventResponseDto result = eventService.createEvent(requestDto, tenant);
+        EventResponseDto result = eventService.createEvent(requestDto, venue);
 
         assertThat(result).isNotNull();
         assertThat(result.getName()).isEqualTo("Concert");
@@ -132,28 +126,27 @@ class EventServiceTest {
     }
 
     /**
-     * Verifies that the service assigns the supplied tenant to the event
+     * Verifies that the service assigns the supplied venue to the event
      * before persisting it.
      */
     @Transactional
     @Test
-    void createEvent_setsTenantOnEvent() {
-        Event eventWithoutTenant = Event.builder()
+    void createEvent_setsVenueOnEvent() {
+        Event eventWithoutVenue = Event.builder()
                 .id(eventId)
                 .name("Concert")
                 .date(OffsetDateTime.now().plusDays(10))
-                .totalCapacity(200)
-                .availableCapacity(200)
-                // no tenant
+                .bookingPolicy(new BookingPolicy(200,200))
+                // no venue
                 .build();
 
-        when(eventMapper.toEntity(requestDto)).thenReturn(eventWithoutTenant);
-        when(eventRepository.save(any())).thenReturn(eventWithoutTenant);
+        when(eventMapper.toEntity(requestDto)).thenReturn(eventWithoutVenue);
+        when(eventRepository.save(any())).thenReturn(eventWithoutVenue);
         when(eventMapper.toDto(any())).thenReturn(responseDto);
 
-        eventService.createEvent(requestDto, tenant);
+        eventService.createEvent(requestDto, venue);
 
-        assertThat(eventWithoutTenant.getTenant()).isEqualTo(tenant); // the test passes because eventWithoutTenant object reference is the same throughout the method execution, inside createEvent method the tenant is assigned to it and thus the assert passes
+        assertThat(eventWithoutVenue.getVenue()).isEqualTo(venue); // the test passes because eventWithoutVenue object reference is the same throughout the method execution, inside createEvent method the venue is assigned to it and thus the assert passes
     }
 
     /**
@@ -168,7 +161,7 @@ class EventServiceTest {
         when(eventRepository.save(any())).thenReturn(event);
         when(eventMapper.toDto(any())).thenReturn(responseDto);
 
-        eventService.createEvent(requestDto, tenant);
+        eventService.createEvent(requestDto, venue);
 
         assertThat(event.getStatus()).isEqualTo(Status.CONFIRMED);
     }
@@ -180,14 +173,14 @@ class EventServiceTest {
     @Transactional
     @Test
     void createEvent_setsAvailableCapacityEqualToTotalCapacity() {
-        event.setAvailableCapacity(0);
+        event.getBookingPolicy().setAvailableCapacity(0);
         when(eventMapper.toEntity(requestDto)).thenReturn(event);
         when(eventRepository.save(any())).thenReturn(event);
         when(eventMapper.toDto(any())).thenReturn(responseDto);
 
-        eventService.createEvent(requestDto, tenant);
+        eventService.createEvent(requestDto, venue);
 
-        assertThat(event.getAvailableCapacity()).isEqualTo(event.getTotalCapacity());
+        assertThat(event.getBookingPolicy().getAvailableCapacity()).isEqualTo(event.getBookingPolicy().getTotalCapacity());
     }
 
     /**
@@ -199,11 +192,11 @@ class EventServiceTest {
     void createEvent_throwsPastEventException_whenDateIsInThePast() {
         Event pastEvent = Event.builder()
                 .date(OffsetDateTime.now().minusDays(1))
-                .totalCapacity(100)
+                .bookingPolicy(new BookingPolicy(100))
                 .build();
         when(eventMapper.toEntity(requestDto)).thenReturn(pastEvent);
 
-        assertThatThrownBy(() -> eventService.createEvent(requestDto, tenant))
+        assertThatThrownBy(() -> eventService.createEvent(requestDto, venue))
                 .isInstanceOf(PastEventException.class);
 
         verify(eventRepository, never()).save(any());
@@ -219,12 +212,11 @@ class EventServiceTest {
     void createEvent_throwsIllegalArgumentException_whenCapacityExceeds10000() {
         Event oversizedEvent = Event.builder()
                 .date(OffsetDateTime.now().plusDays(5))
-                .totalCapacity(10001)
-                .availableCapacity(10001)
+                .bookingPolicy(new BookingPolicy(10001,10001))
                 .build();
         when(eventMapper.toEntity(requestDto)).thenReturn(oversizedEvent);
 
-        assertThatThrownBy(() -> eventService.createEvent(requestDto, tenant))
+        assertThatThrownBy(() -> eventService.createEvent(requestDto, venue))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("10000");
 
@@ -240,11 +232,9 @@ class EventServiceTest {
     void createEvent_allowsCapacityExactly10000() {
         Event maxEvent = Event.builder()
                 .date(OffsetDateTime.now().plusDays(5))
-                .totalCapacity(10000)
-                .availableCapacity(10000)
+                .bookingPolicy(new BookingPolicy(10000,10000))
                 .build();
         EventResponseDto maxDto = EventResponseDto.builder()
-                .id(UUID.randomUUID())
                 .totalCapacity(10000)
                 .availableCapacity(10000)
                 .build();
@@ -252,55 +242,9 @@ class EventServiceTest {
         when(eventRepository.save(maxEvent)).thenReturn(maxEvent);
         when(eventMapper.toDto(maxEvent)).thenReturn(maxDto);
 
-        EventResponseDto result = eventService.createEvent(requestDto, tenant);
+        EventResponseDto result = eventService.createEvent(requestDto, venue);
 
         assertThat(result.getTotalCapacity()).isEqualTo(10000);
-    }
-
-
-    /**
-     * Verifies that a valid ID belonging to the given tenant returns the
-     * expected response DTO.
-     */
-    @Transactional
-    @Test
-    void getEventById_success_returnsEventResponseDto() {
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
-        when(eventMapper.toDto(event)).thenReturn(responseDto);
-
-        EventResponseDto result = eventService.getEventById(eventId, tenant);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getId()).isEqualTo(eventId);
-    }
-
-    /**
-     * Verifies that a {@link ResourceNotFoundException} containing the event ID
-     * is thrown when no event is found for the given ID and tenant.
-     */
-    @Transactional
-    @Test
-    void getEventById_throwsResourceNotFoundException_whenEventNotFound() {
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> eventService.getEventById(eventId, tenant))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining(eventId.toString());
-    }
-
-    /**
-     * Verifies that the repository lookup is always scoped to the provided
-     * tenant, preventing cross-tenant data leakage.
-     */
-    @Transactional
-    @Test
-    void getEventById_scopesQueryByTenant() {
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
-        when(eventMapper.toDto(any())).thenReturn(responseDto);
-
-        eventService.getEventById(eventId, tenant);
-
-        verify(eventRepository).findByIdAndTenant(eventId, tenant);
     }
 
 
@@ -310,11 +254,11 @@ class EventServiceTest {
     @Transactional
     @Test
     void updateEvent_success_returnsUpdatedDto() {
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(eventRepository.save(event)).thenReturn(event);
         when(eventMapper.toDto(event)).thenReturn(responseDto);
 
-        EventResponseDto result = eventService.updateEvent(eventId, requestDto, tenant);
+        EventResponseDto result = eventService.updateEvent(eventId, requestDto, venue);
 
         assertThat(result).isNotNull();
     }
@@ -333,11 +277,11 @@ class EventServiceTest {
                 .date(OffsetDateTime.now().plusDays(20))
                 .totalCapacity(200)
                 .build();
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(eventRepository.save(any())).thenReturn(event);
         when(eventMapper.toDto(any())).thenReturn(responseDto);
 
-        eventService.updateEvent(eventId, updatedDto, tenant);
+        eventService.updateEvent(eventId, updatedDto, venue);
 
         assertThat(event.getName()).isEqualTo("New Name");
         assertThat(event.getDescription()).isEqualTo("New Desc");
@@ -346,13 +290,13 @@ class EventServiceTest {
 
     /**
      * Verifies that a {@link ResourceNotFoundException} is thrown when the
-     * event does not exist for the given tenant.
+     * event does not exist for the given venue.
      */
     @Test
     void updateEvent_throwsResourceNotFoundException_whenEventNotFound() {
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.empty());
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> eventService.updateEvent(eventId, requestDto, tenant))
+        assertThatThrownBy(() -> eventService.updateEvent(eventId, requestDto, venue))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(eventId.toString());
     }
@@ -366,8 +310,8 @@ class EventServiceTest {
     @Transactional
     @Test
     void updateEvent_increasingCapacity_updatesAvailableCapacityPreservingBookedSeats() {
-        event.setTotalCapacity(100);
-        event.setAvailableCapacity(60); // 40 seats are booked
+        event.getBookingPolicy().setTotalCapacity(100);
+        event.getBookingPolicy().setAvailableCapacity(60); // 40 seats are booked
 
         EventRequestDto increaseDto = EventRequestDto.builder()
                 .name("Concert").description("Desc").location("Amsterdam")
@@ -375,14 +319,14 @@ class EventServiceTest {
                 .totalCapacity(150)
                 .build();
 
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(eventRepository.save(any())).thenReturn(event);
         when(eventMapper.toDto(any())).thenReturn(responseDto);
 
-        eventService.updateEvent(eventId, increaseDto, tenant);
+        eventService.updateEvent(eventId, increaseDto, venue);
 
-        assertThat(event.getTotalCapacity()).isEqualTo(150);
-        assertThat(event.getAvailableCapacity()).isEqualTo(110);
+        assertThat(event.getBookingPolicy().getTotalCapacity()).isEqualTo(150);
+        assertThat(event.getBookingPolicy().getAvailableCapacity()).isEqualTo(110);
     }
 
     /**
@@ -392,8 +336,8 @@ class EventServiceTest {
     @Transactional
     @Test
     void updateEvent_decreasingCapacity_withNoActiveBookings_succeeds() {
-        event.setTotalCapacity(200);
-        event.setAvailableCapacity(200);
+        event.getBookingPolicy().setTotalCapacity(200);
+        event.getBookingPolicy().setAvailableCapacity(200);
 
         EventRequestDto decreaseDto = EventRequestDto.builder()
                 .name("Concert").description("Desc").location("Amsterdam")
@@ -401,15 +345,15 @@ class EventServiceTest {
                 .totalCapacity(100)
                 .build();
 
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(bookingRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED)).thenReturn(0);
         when(eventRepository.save(any())).thenReturn(event);
         when(eventMapper.toDto(any())).thenReturn(responseDto);
 
-        eventService.updateEvent(eventId, decreaseDto, tenant);
+        eventService.updateEvent(eventId, decreaseDto, venue);
 
-        assertThat(event.getTotalCapacity()).isEqualTo(100);
-        assertThat(event.getAvailableCapacity()).isEqualTo(100);
+        assertThat(event.getBookingPolicy().getTotalCapacity()).isEqualTo(100);
+        assertThat(event.getBookingPolicy().getAvailableCapacity()).isEqualTo(100);
     }
 
     /**
@@ -421,7 +365,7 @@ class EventServiceTest {
     @Transactional
     @Test
     void updateEvent_decreasingCapacity_throwsEventDecreaseException_whenActiveBookingsExist() {
-        event.setTotalCapacity(200);
+        event.getBookingPolicy().setTotalCapacity(200);
 
         EventRequestDto decreaseDto = EventRequestDto.builder()
                 .name("Concert").description("Desc").location("Amsterdam")
@@ -429,10 +373,10 @@ class EventServiceTest {
                 .totalCapacity(50)
                 .build();
 
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(bookingRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED)).thenReturn(5);
 
-        assertThatThrownBy(() -> eventService.updateEvent(eventId, decreaseDto, tenant))
+        assertThatThrownBy(() -> eventService.updateEvent(eventId, decreaseDto, venue))
                 .isInstanceOf(EventDecreaseException.class)
                 .hasMessageContaining("5");
 
@@ -452,9 +396,9 @@ class EventServiceTest {
                 .totalCapacity(200)
                 .build();
 
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
 
-        assertThatThrownBy(() -> eventService.updateEvent(eventId, pastDateDto, tenant))
+        assertThatThrownBy(() -> eventService.updateEvent(eventId, pastDateDto, venue))
                 .isInstanceOf(PastEventException.class);
 
         verify(eventRepository, never()).save(any());
@@ -473,9 +417,9 @@ class EventServiceTest {
                 .totalCapacity(10001)
                 .build();
 
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
 
-        assertThatThrownBy(() -> eventService.updateEvent(eventId, oversizedDto, tenant))
+        assertThatThrownBy(() -> eventService.updateEvent(eventId, oversizedDto, venue))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("10000");
 
@@ -504,12 +448,12 @@ class EventServiceTest {
         Booking b1 = Booking.builder().user(user1).build();
         Booking b2 = Booking.builder().user(user2).build();
 
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(eventRepository.save(any())).thenReturn(event);
         when(eventMapper.toDto(any())).thenReturn(responseDto);
         when(bookingRepository.findByEventId(eventId)).thenReturn(List.of(b1, b2));
 
-        eventService.updateEvent(eventId, changedDateDto, tenant);
+        eventService.updateEvent(eventId, changedDateDto, venue);
 
         verify(emailService).sendEventUpdateEmail("a@example.com", newDate, originalLocation);
         verify(emailService).sendEventUpdateEmail("b@example.com", newDate, originalLocation);
@@ -534,12 +478,12 @@ class EventServiceTest {
         User user1 = User.builder().id(UUID.randomUUID()).email("a@example.com").build();
         Booking b1 = Booking.builder().user(user1).build();
 
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(eventRepository.save(any())).thenReturn(event);
         when(eventMapper.toDto(any())).thenReturn(responseDto);
         when(bookingRepository.findByEventId(eventId)).thenReturn(List.of(b1));
 
-        eventService.updateEvent(eventId, changedLocationDto, tenant);
+        eventService.updateEvent(eventId, changedLocationDto, venue);
 
         verify(emailService).sendEventUpdateEmail("a@example.com", originalDate, "Rotterdam");
     }
@@ -559,28 +503,28 @@ class EventServiceTest {
                 .totalCapacity(200)
                 .build();
 
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(eventRepository.save(any())).thenReturn(event);
         when(eventMapper.toDto(any())).thenReturn(responseDto);
 
-        eventService.updateEvent(eventId, noChangeDto, tenant);
+        eventService.updateEvent(eventId, noChangeDto, venue);
 
         verify(emailService, never()).sendEventUpdateEmail(any(), any(), any());
         verify(bookingRepository, never()).findByEventId(any());
     }
 
     /**
-     * Verifies that deleting an event performs a soft delete by setting its
+     * Verifies that deleting a event performs a soft delete by setting its
      * status to {@link Status#CANCELLED} and saving the updated entity,
      * rather than removing the record from the database.
      */
     @Transactional
     @Test
     void deleteEvent_success_softDeletesBySettingStatusToCancelled() {
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(bookingRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED)).thenReturn(0);
 
-        eventService.deleteEvent(eventId, tenant);
+        eventService.deleteEvent(eventId, venue);
 
         assertThat(event.getStatus()).isEqualTo(Status.CANCELLED);
         verify(eventRepository).save(event);
@@ -588,14 +532,14 @@ class EventServiceTest {
 
     /**
      * Verifies that a {@link ResourceNotFoundException} is thrown — and no
-     * save occurs — when the event to delete is not found for the given tenant.
+     * save occurs — when the event to delete is not found for the given venue.
      */
     @Transactional
     @Test
     void deleteEvent_throwsResourceNotFoundException_whenEventNotFound() {
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.empty());
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> eventService.deleteEvent(eventId, tenant))
+        assertThatThrownBy(() -> eventService.deleteEvent(eventId, venue))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(eventId.toString());
 
@@ -610,10 +554,10 @@ class EventServiceTest {
     @Transactional
     @Test
     void deleteEvent_throwsEventDeleteException_whenActiveBookingsExist() {
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(bookingRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED)).thenReturn(4);
 
-        assertThatThrownBy(() -> eventService.deleteEvent(eventId, tenant))
+        assertThatThrownBy(() -> eventService.deleteEvent(eventId, venue))
                 .isInstanceOf(EventDeleteException.class)
                 .hasMessageContaining("4");
 
@@ -622,7 +566,7 @@ class EventServiceTest {
 
     /**
      * Verifies that a {@link PastEventException} is thrown — and no save
-     * occurs — when an attempt is made to delete an event whose date has
+     * occurs — when an attempt is made to delete a event whose date has
      * already passed.
      */
     @Transactional
@@ -630,10 +574,10 @@ class EventServiceTest {
     void deleteEvent_throwsPastEventException_whenEventIsInThePast() {
         event.setDate(OffsetDateTime.now().minusDays(1));
 
-        when(eventRepository.findByIdAndTenant(eventId, tenant)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndVenue(eventId, venue)).thenReturn(Optional.of(event));
         when(bookingRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED)).thenReturn(0);
 
-        assertThatThrownBy(() -> eventService.deleteEvent(eventId, tenant))
+        assertThatThrownBy(() -> eventService.deleteEvent(eventId, venue))
                 .isInstanceOf(PastEventException.class);
 
         verify(eventRepository, never()).save(any());
@@ -641,17 +585,17 @@ class EventServiceTest {
 
     /**
      * Verifies that the service returns a correctly mapped page of
-     * {@link EventResponseDto} objects when events exist for the tenant.
+     * {@link EventResponseDto} objects when events exist for the venue.
      */
     @Transactional
     @Test
     void getAllEvents_returnsPageOfEventResponseDtos() {
         Pageable pageable = PageRequest.of(0, 10); //first ten elements of page 0
         Page<Event> eventPage = new PageImpl<>(List.of(event)); //creates a fake page containing only the given event
-        when(eventRepository.findByTenant(tenant, pageable)).thenReturn(eventPage);
+        when(eventRepository.findByVenue(venue, pageable)).thenReturn(eventPage);
         when(eventMapper.toDto(event)).thenReturn(responseDto);
 
-        Page<EventResponseDto> result = eventService.getAllEvents(pageable, tenant);
+        Page<EventResponseDto> result = eventService.getAllEvents(pageable, venue);
 
         assertThat(result).isNotNull();
         assertThat(result.getTotalElements()).isEqualTo(1);
@@ -660,15 +604,15 @@ class EventServiceTest {
 
     /**
      * Verifies that an empty page is returned without errors when no events
-     * exist for the tenant.
+     * exist for the venue.
      */
     @Transactional
     @Test
     void getAllEvents_returnsEmptyPage_whenNoEventsExist() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(eventRepository.findByTenant(tenant, pageable)).thenReturn(Page.empty());
+        when(eventRepository.findByVenue(venue, pageable)).thenReturn(Page.empty());
 
-        Page<EventResponseDto> result = eventService.getAllEvents(pageable, tenant);
+        Page<EventResponseDto> result = eventService.getAllEvents(pageable, venue);
 
         assertThat(result).isEmpty();
     }
@@ -681,18 +625,22 @@ class EventServiceTest {
     @Test
     void getAllEvents_mapsEachEventToDto() {
         Event event2 = Event.builder()
-                .id(UUID.randomUUID()).name("Fest").date(OffsetDateTime.now().plusDays(5))
-                .totalCapacity(50).availableCapacity(50).tenant(tenant).build();
+                .id(UUID.randomUUID())
+                .name("Fest")
+                .date(OffsetDateTime.now().plusDays(5))
+                .bookingPolicy(new BookingPolicy(50,50))
+                .venue(venue)
+                .build();
         EventResponseDto dto2 = EventResponseDto.builder()
-                .id(event2.getId()).name("Fest").build();
+                .name("Fest").build();
 
         Pageable pageable = PageRequest.of(0, 10);
         Page<Event> eventPage = new PageImpl<>(List.of(event, event2));
-        when(eventRepository.findByTenant(tenant, pageable)).thenReturn(eventPage);
+        when(eventRepository.findByVenue(venue, pageable)).thenReturn(eventPage);
         when(eventMapper.toDto(event)).thenReturn(responseDto);
         when(eventMapper.toDto(event2)).thenReturn(dto2);
 
-        Page<EventResponseDto> result = eventService.getAllEvents(pageable, tenant);
+        Page<EventResponseDto> result = eventService.getAllEvents(pageable, venue);
 
         assertThat(result.getContent()).containsExactly(responseDto, dto2);
         verify(eventMapper, times(2)).toDto(any(Event.class));

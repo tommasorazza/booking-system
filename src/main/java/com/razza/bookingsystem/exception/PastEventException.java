@@ -3,7 +3,7 @@ package com.razza.bookingsystem.exception;
 import java.time.OffsetDateTime;
 
 /**
- * Exception thrown when an operation is attempted on an event
+ * Exception thrown when an operation is attempted on a event
  * that is scheduled in the past.
  *
  * This is typically used to prevent creating or updating bookings

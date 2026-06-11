@@ -46,7 +46,7 @@ class RateLimitingAuthenticatedIntegrationTest {
      * Logs in as Alice before each test and stores her JWT.
      *
      * Alice is seeded by DataInitializer with email alice@example.com
-     * and password "password" in Tenant A. The login request itself
+     * and password "password" in Venue A. The login request itself
      * consumes one token from the IP bucket for the auth endpoint,
      * but Alice's user bucket for authenticated endpoints starts full.
      */
@@ -55,7 +55,7 @@ class RateLimitingAuthenticatedIntegrationTest {
         LoginRequest loginRequest = LoginRequest.builder()
                 .email("alice@example.com")
                 .password("password")
-                .tenantName("Tenant A")
+                .venueName("Venue A")
                 .build();
 
         MvcResult result = mockMvc.perform(post("/auth/login")
@@ -101,7 +101,7 @@ class RateLimitingAuthenticatedIntegrationTest {
         LoginRequest arianaLogin = LoginRequest.builder()
                 .email("ariana@example.com")
                 .password("password")
-                .tenantName("Tenant A")
+                .venueName("Venue A")
                 .build();
 
         MvcResult arianaResult = mockMvc.perform(post("/auth/login")

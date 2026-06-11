@@ -28,7 +28,7 @@ public class EmailService {
     private static final String FROM = "noreply@bookingsystem.com";
 
     /**
-     * Sends an email notification to a user when an event is updated.
+     * Sends an email notification to a user when a event is updated.
      *
      * The email contains:
      * - updated event date
@@ -41,7 +41,7 @@ public class EmailService {
      * @param newLocation updated event location
      * @throws RuntimeException if email sending fails
      */
-    @Async
+    @Async      //@Async is used so that the caller gets back the control immediately, without having to wait for the emailService to send the email, this way the thread can be re-used by other users, this is done because emailService could be particularly slow in sending an email
     public void sendEventUpdateEmail(
             String to,
             OffsetDateTime newDate,
@@ -57,7 +57,63 @@ public class EmailService {
 
             String formattedDate = newDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
 
-            String htmlContent = buildHtmlContent(formattedDate, newLocation);
+            String htmlContent = buildHtmlContentUpdate(formattedDate, newLocation);
+
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+
+        } catch (MessagingException e) {
+            throw new RuntimeException("Failed to send email to " + to, e);
+        }
+    }
+
+    @Async
+    public void sendScheduleReminder(
+            String to,
+            String location,
+            OffsetDateTime eventDate
+    ) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+
+            helper.setFrom(FROM);
+            helper.setTo(to);
+            helper.setSubject("Schedule update");
+
+            String formattedDate = eventDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+
+            String htmlContent = buildHtmlContentSchedule(formattedDate, location);
+
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+
+        } catch (MessagingException e) {
+            throw new RuntimeException("Failed to send email to " + to, e);
+        }
+    }
+
+
+
+    @Async
+    public void sendEventDeleteEmail(
+            String to,
+            String location,
+            OffsetDateTime eventDate
+    ) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+
+            helper.setFrom(FROM);
+            helper.setTo(to);
+            helper.setSubject("Event cancel notification");
+
+            String formattedDate = eventDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+
+            String htmlContent = buildHtmlContentDelete(formattedDate, location);
 
             helper.setText(htmlContent, true);
 
@@ -75,7 +131,7 @@ public class EmailService {
      * @param location event location
      * @return HTML email content as a string
      */
-    private String buildHtmlContent(String date, String location) {
+    private String buildHtmlContentUpdate(String date, String location) {
         return """
                 <html>
                     <body style="font-family: Arial, sans-serif;">
@@ -93,4 +149,33 @@ public class EmailService {
                 </html>
                 """.formatted(date, location);
     }
+
+    private String buildHtmlContentSchedule(String date, String location) {
+        return """
+                <html>
+                    <body style="font-family: Arial, sans-serif;">
+                        <h2> Schedule Updated</h2>
+                        <p>Hello,</p>
+                        <p>Schedule has been updated: you have a new scheduled performance on %s at %s </p>
+                        <p> for any question or cancel request, let us know as soon as possible </p>
+                        <p>Regards,<br/>Booking System</p>
+                    </body>
+                </html>
+                """.formatted(date, location);
+    }
+
+    private String buildHtmlContentDelete(String date, String location) {
+        return """
+                <html>
+                    <body style="font-family: Arial, sans-serif;">
+                        <h2> Schedule Updated</h2>
+                        <p>Hello,</p>
+                        <p> unfortunately, the performances scheduled on %s at %s have been canceled </p>
+                        <p> We are deeply sorry for the inconvenience. </p>
+                        <p>Regards,<br/>Booking System</p>
+                    </body>
+                </html>
+                """.formatted(date, location);
+    }
+
 }

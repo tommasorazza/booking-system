@@ -1,12 +1,16 @@
 package com.razza.bookingsystem.security;
 
-import com.razza.bookingsystem.domain.Tenant;
+import com.razza.bookingsystem.domain.Availability;
+import com.razza.bookingsystem.domain.Venue;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.OffsetDateTime;
 import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -17,11 +21,12 @@ import java.util.UUID;
  *
  * It includes additional domain-specific information such as:
  * - unique user ID
- * - tenant (for multi-tenant support)
+ * - venue (for multi-venue support)
  *
  * The email is used as the username for authentication.
  */
 @Getter
+@Setter
 @AllArgsConstructor
 public class CustomUserDetails implements UserDetails {
 
@@ -29,6 +34,10 @@ public class CustomUserDetails implements UserDetails {
      * Unique identifier of the user.
      */
     private UUID id;
+
+    private String name;
+
+    private OffsetDateTime birthDate;
 
     /**
      * User's email address, used as the username.
@@ -41,10 +50,12 @@ public class CustomUserDetails implements UserDetails {
     private String password;
 
     /**
-     * Tenant associated with the user.
-     * Used to enforce multi-tenant isolation.
+     * Venue associated with the user.
+     * Used to enforce multi-venue isolation.
      */
-    private Tenant tenant;
+    private Venue venue;
+
+    private Availability availability;
 
     /**
      * Collection of granted authorities (roles/permissions).
@@ -56,9 +67,9 @@ public class CustomUserDetails implements UserDetails {
      *
      * @return the username
      */
-    @Override
+    @Override       //these methods have @Override for compile safety reasons, the compiler knows which method belong to customUserDetails and if customUserDetails.nonExistentMethod() is called, then an error will be thrown because the method will not be recognized, also because they are methods of an interface implementation
     public String getUsername() {
-        return email + "|" + tenant.getName();
+        return email + "|" + venue.getName();
     }
 
     /**
