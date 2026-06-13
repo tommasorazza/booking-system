@@ -1,5 +1,6 @@
 package com.razza.bookingsystem.domain;
 
+import com.razza.bookingsystem.exception.BadCapacityException;
 import jakarta.persistence.Access;
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
@@ -26,22 +27,22 @@ public class BookingPolicy {
         if(totalCapacity > 0) {
             this.totalCapacity = totalCapacity;
         } else {
-            throw new RuntimeException("capacity should be higher than 0");
+            throw new BadCapacityException();
         }
-        if(availableCapacity > 0 && availableCapacity <= totalCapacity) {
+        if(availableCapacity > 0 && totalCapacity < 10000 && availableCapacity <= totalCapacity) {
             this.totalCapacity = totalCapacity;
             this.availableCapacity = availableCapacity;
         } else {
-            throw new RuntimeException("capacity should be higher than 0 and less or equal than total capacity");
+            throw new BadCapacityException();
         }
     }
 
 
     public BookingPolicy(int totalCapacity){
-        if(totalCapacity > 0) {
+        if(totalCapacity > 0 && totalCapacity < 10000) {
             this.totalCapacity = totalCapacity;
         } else {
-            throw new RuntimeException("capacity should be higher than 0");
+            throw new BadCapacityException();
         }
         this.availableCapacity = this.totalCapacity;
     }
