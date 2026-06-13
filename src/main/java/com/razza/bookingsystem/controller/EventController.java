@@ -1,6 +1,7 @@
 package com.razza.bookingsystem.controller;
 
 import com.razza.bookingsystem.domain.Event;
+import com.razza.bookingsystem.domain.TimeSlot;
 import com.razza.bookingsystem.dto.EventByDateResponseDto;
 import com.razza.bookingsystem.dto.EventRequestDto;
 import com.razza.bookingsystem.dto.EventResponseDto;
@@ -18,9 +19,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Controller for managing events.
@@ -51,7 +55,7 @@ public class EventController {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/{id}")
+    @PostMapping("/{eventId}")
     public EventResponseDto createEventById(@PathVariable UUID eventId, @RequestParam String location, @RequestParam OffsetDateTime date, @AuthenticationPrincipal CustomUserDetails user){
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("event", eventId));
@@ -64,7 +68,16 @@ public class EventController {
         if(event.getBookingPolicy() != null) {
             eventRequestDto.setTotalCapacity(event.getBookingPolicy().getTotalCapacity());
         }
-        eventRequestDto.setSchedule(event.getSchedule());
+        List<TimeSlot> newSchedule = new ArrayList<>(event.getSchedule().stream().map(slot ->
+                new TimeSlot(slot.getUserEmail(), slot.getStartTime(), slot.getEndTime(), slot.getPerformanceId())).collect(Collectors.toList()));
+        // this is done in order to create a copy of the old schedule without passing the actual reference, the new
+        // list is instanced as well as every slot inside it
+        long minutes = ChronoUnit.MINUTES.between(event.getDate(), date);
+        for(TimeSlot slot : newSchedule) {
+            slot.setStartTime(slot.getStartTime().plusMinutes(minutes));
+            slot.setEndTime(slot.getEndTime().plusMinutes(minutes));
+        }
+        eventRequestDto.setSchedule(newSchedule);
         eventRequestDto.setEighteenPlus(event.getEighteenPlus());
         return eventService.createEvent(eventRequestDto, user.getVenue());
     }

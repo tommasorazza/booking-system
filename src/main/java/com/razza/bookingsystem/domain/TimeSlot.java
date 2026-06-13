@@ -1,6 +1,7 @@
 package com.razza.bookingsystem.domain;
 
 import jakarta.persistence.Embeddable;
+import jakarta.persistence.Entity;
 import lombok.*;
 
 import java.time.OffsetDateTime;

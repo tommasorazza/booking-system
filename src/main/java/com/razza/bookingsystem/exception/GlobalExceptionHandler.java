@@ -148,6 +148,16 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    @ExceptionHandler(EmptyScheduleException.class)
+    public ResponseEntity<Map<String, Object>> handleEmptySchedule(EmptyScheduleException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(BadCapacityException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCapacity(BadCapacityException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     /**
      * Handles IllegalArgumentException and returns 400 BAD_REQUEST.
      */

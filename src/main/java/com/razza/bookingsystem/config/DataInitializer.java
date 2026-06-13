@@ -284,14 +284,14 @@ public class DataInitializer {
                         .schedule(List.of(
                                 TimeSlot.builder()
                                         .userEmail("adam@example.com")
-                                        .startTime(OffsetDateTime.parse("2026-06-01T18:00:00+02:00"))
-                                        .endTime(OffsetDateTime.parse("2026-06-01T20:00:00+02:00"))
+                                        .startTime(OffsetDateTime.parse("2026-07-01T18:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-07-01T20:00:00+02:00"))
                                         .performanceId(userRepository.findByEmailAndVenue("adam@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("jazz")).findFirst().get().getId())
                                         .build(),
                                 TimeSlot.builder()
                                         .userEmail("adrien@example.com")
-                                        .startTime(OffsetDateTime.parse("2026-06-01T20:00:00+02:00"))
-                                        .endTime(OffsetDateTime.parse("2026-06-01T22:00:00+02:00"))
+                                        .startTime(OffsetDateTime.parse("2026-07-01T20:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-07-01T22:00:00+02:00"))
                                         .performanceId(userRepository.findByEmailAndVenue("adrien@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("funk")).findFirst().get().getId())
                                         .build()
 
@@ -310,20 +310,20 @@ public class DataInitializer {
                         .schedule(List.of(
                                 TimeSlot.builder()
                                         .userEmail("alex@example.com")
-                                        .startTime(OffsetDateTime.parse("2026-06-02T19:00:00+02:00"))
-                                        .endTime(OffsetDateTime.parse("2026-06-02T21:00:00+02:00"))
+                                        .startTime(OffsetDateTime.parse("2026-07-02T19:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-07-02T21:00:00+02:00"))
                                         .performanceId(userRepository.findByEmailAndVenue("alex@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("blues")).findFirst().get().getId())
                                         .build(),
                                 TimeSlot.builder()
                                         .userEmail("adam@example.com")
-                                        .startTime(OffsetDateTime.parse("2026-06-02T21:00:00+02:00"))
-                                        .endTime(OffsetDateTime.parse("2026-06-02T23:00:00+02:00"))
+                                        .startTime(OffsetDateTime.parse("2026-07-02T21:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-07-02T23:00:00+02:00"))
                                         .performanceId(userRepository.findByEmailAndVenue("adam@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("rock")).findFirst().get().getId())
                                         .build(),
                                 TimeSlot.builder()
                                         .userEmail("adam@example.com")
-                                        .startTime(OffsetDateTime.parse("2026-06-02T23:00:00+02:00"))
-                                        .endTime(OffsetDateTime.parse("2026-06-03T01:00:00+02:00"))
+                                        .startTime(OffsetDateTime.parse("2026-07-02T23:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-07-03T01:00:00+02:00"))
                                         .performanceId(userRepository.findByEmailAndVenue("adam@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("jazz")).findFirst().get().getId())
                                         .build()
 
@@ -342,8 +342,8 @@ public class DataInitializer {
                         .schedule(List.of(
                                 TimeSlot.builder()
                                         .userEmail("adrien@example.com")
-                                        .startTime(OffsetDateTime.parse("2026-06-02T20:00:00+02:00"))
-                                        .endTime(OffsetDateTime.parse("2026-06-02T22:00:00+02:00"))
+                                        .startTime(OffsetDateTime.parse("2026-07-02T20:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-07-02T22:00:00+02:00"))
                                         .performanceId(userRepository.findByEmailAndVenue("adrien@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("funk")).findFirst().get().getId())
                                         .build()
                         ))
@@ -361,8 +361,8 @@ public class DataInitializer {
                         .schedule(List.of(
                                 TimeSlot.builder()
                                         .userEmail("benjamin@example.com")
-                                        .startTime(OffsetDateTime.parse("2026-06-01T21:00:00+02:00"))
-                                        .endTime(OffsetDateTime.parse("2026-06-01T23:00:00+02:00"))
+                                        .startTime(OffsetDateTime.parse("2026-07-01T21:00:00+02:00"))
+                                        .endTime(OffsetDateTime.parse("2026-07-01T23:00:00+02:00"))
                                         .performanceId(userRepository.findByEmailAndVenue("benjamin@example.com", venueB).get().getPerformances().stream().filter(performance -> performance.getName().equals("cabaret")).findFirst().get().getId())
                                         .build()
                         ))

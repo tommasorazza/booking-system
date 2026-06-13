@@ -86,7 +86,7 @@ public class EventService {
             throw new PastEventException(event.getDate());
         }
 
-        isScheduleValid(dto.getSchedule(), venue);
+        isScheduleValid(dto.getSchedule(), dto.getDate(), venue);
 
         if(dto.getTotalCapacity() != null){
             BookingPolicy bookingPolicy = new BookingPolicy(dto.getTotalCapacity());
@@ -160,7 +160,7 @@ public class EventService {
         event.setLocation(dto.getLocation());
         event.setDate(dto.getDate());
 
-        isScheduleValid(dto.getSchedule(), venue);
+        isScheduleValid(dto.getSchedule(), dto.getDate(), venue);
 
         if(dto.getTotalCapacity() != null && event.getBookingPolicy() != null) {
             if (event.getBookingPolicy().getTotalCapacity() > dto.getTotalCapacity()) {
@@ -261,7 +261,16 @@ public class EventService {
                 .map(eventMapper::toDto);
     }
 
-    private void isScheduleValid(List<TimeSlot> schedule, Venue venue) {
+    private void isScheduleValid(List<TimeSlot> schedule, OffsetDateTime eventDate, Venue venue) {
+
+        if(schedule.isEmpty()){
+            throw new EmptyScheduleException();
+        }
+
+        long startMinutes = ChronoUnit.MINUTES.between(eventDate, schedule.get(0).getStartTime());
+        if(startMinutes > 600){
+            throw new InvalidScheduleException(startMinutes);
+        }
 
         for(TimeSlot slot : schedule) {
             Performance performance = performanceRepository.findById(slot.getPerformanceId())
@@ -275,6 +284,7 @@ public class EventService {
             if(performance.getPerformanceType() == PerformanceType.INACTIVE){
                 throw new InactivePerformanceException(slot.getPerformanceId());
             }
+
             if(slot.getEndTime().isBefore(slot.getStartTime())) {
                 throw new InvalidScheduleException();
             }
