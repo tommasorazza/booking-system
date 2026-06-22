@@ -1,12 +1,15 @@
 package com.razza.bookingsystem.controller;
 
+import com.razza.bookingsystem.domain.Role;
 import com.razza.bookingsystem.domain.User;
 import com.razza.bookingsystem.dto.BookingDto;
+import com.razza.bookingsystem.exception.InvalidRoleException;
 import com.razza.bookingsystem.exception.ResourceNotFoundException;
 import com.razza.bookingsystem.repository.UserRepository;
 import com.razza.bookingsystem.security.CustomUserDetails;
 import com.razza.bookingsystem.service.BookingService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +41,7 @@ public class BookingController {
      * @return the created booking as a BookingDto
      */
     @PostMapping("/bookings/{eventId}/book")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GUEST')")
     public BookingDto createBooking(@PathVariable UUID eventId,
                                     @RequestParam int quantity,
                                     @RequestParam(required = false) UUID userId,
@@ -47,6 +51,10 @@ public class BookingController {
                 ? userRepository.findById(userId)
                   .orElseThrow(() -> new ResourceNotFoundException("user", userId))
                 : null;
+
+        if(targetUser != null && targetUser.getRole() == Role.PERFORMER) {
+            throw InvalidRoleException.wrongBookingRole();
+        }
 
         Boolean isAdmin = user.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
@@ -75,6 +83,7 @@ public class BookingController {
      * @return the updated booking as a BookingDto
      */
     @PutMapping("/bookings/{bookingId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GUEST')")
     public BookingDto modifyQuantity(@PathVariable UUID bookingId,
                                      @RequestParam int quantity,
                                      @AuthenticationPrincipal CustomUserDetails user) {
@@ -100,6 +109,7 @@ public class BookingController {
      * @param authentication the current authenticated user
      */
     @DeleteMapping("/bookings/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GUEST')")
     public void cancelBooking(@PathVariable UUID id, Authentication authentication) {
         CustomUserDetails user = getUser(authentication);
 
@@ -125,6 +135,7 @@ public class BookingController {
      * @return list of BookingDto
      */
     @GetMapping("/bookings/userBookings")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GUEST')")
     public List<BookingDto> getUserBookings(@RequestParam(required = false) UUID userId,
                                             @AuthenticationPrincipal CustomUserDetails user) {
 

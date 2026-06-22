@@ -1,9 +1,15 @@
 package com.razza.bookingsystem.exception;
 
-import com.razza.bookingsystem.domain.Role;
-
 public class InvalidRoleException extends RuntimeException {
-    public InvalidRoleException(){
-        super("this role does not exist, only possible options are: guest or performer");
+    public InvalidRoleException(String string){
+        super("Wrong role: " + string);
+    }
+
+    public static InvalidRoleException wrongSignUp() {
+        return new InvalidRoleException("it must be either GUEST or PERFORMER");
+    }
+
+    public static InvalidRoleException wrongBookingRole() {
+        return new InvalidRoleException("you can't create a booking for a performer");
     }
 }

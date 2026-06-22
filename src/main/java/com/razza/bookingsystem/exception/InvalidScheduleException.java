@@ -7,8 +7,24 @@ public class InvalidScheduleException extends RuntimeException {
         super("The schedule is not valid");
     }
 
-    public InvalidScheduleException(String email){
-        super("performer: " + email + " is not registered");
+    public InvalidScheduleException(String string) {
+        super("Schedule problem : " + string);
+    }
+
+    public static InvalidScheduleException overlapping() {
+        return new InvalidScheduleException("the event can't be created or updated as such because it is overlapping with an other event");
+    }
+
+    public static InvalidScheduleException unregisteredEmail(String email) {
+        return new InvalidScheduleException(email + " is not registered");
+    }
+
+    public static InvalidScheduleException slotInThePast() {
+        return new InvalidScheduleException("slots start before the start of the event");
+    }
+
+    public static InvalidScheduleException inconsistentSlots() {
+        return new InvalidScheduleException("some slots overlap");
     }
 
     public InvalidScheduleException(TimeSlot slot){

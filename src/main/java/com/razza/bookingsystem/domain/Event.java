@@ -64,4 +64,8 @@ public class Event {
 
     private Boolean eighteenPlus;
 
+    public OffsetDateTime getEndTime() {
+        return schedule.getLast().getEndTime();
+    }
+
     }

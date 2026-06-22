@@ -80,7 +80,7 @@ public class AuthService {
         }
 
         if(role != Role.GUEST && role != Role.PERFORMER){
-            throw new InvalidRoleException();
+            throw InvalidRoleException.wrongSignUp();
         }
 
         User user;
