@@ -81,7 +81,7 @@ public class BookingService {
         }
 
         if(event.getBookingPolicy() == null ){
-            throw new IllegalStateException("This event doesn't require any booking");
+            throw new QuantityException();
         }
 
         if(quantity < 1){
@@ -110,7 +110,7 @@ public class BookingService {
         int result = eventRepository.decreaseCapacity(eventId, quantity);
 
         if(result == 0){
-            throw new NotEnoughSeatsException();
+            throw new NotEnoughSeatsException(event.getBookingPolicy().getAvailableCapacity());
         }
 
         if (existingCancelledBooking.isPresent()) {
@@ -183,7 +183,7 @@ public class BookingService {
         int result = eventRepository.decreaseCapacity(event.getId(), quantity - booking.getQuantity());
 
         if(result == 0){
-            throw new NotEnoughSeatsException();
+            throw new NotEnoughSeatsException(event.getBookingPolicy().getAvailableCapacity());
         }
 
         booking.setQuantity(quantity);

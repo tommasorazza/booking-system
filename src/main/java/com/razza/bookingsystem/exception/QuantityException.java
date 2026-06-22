@@ -16,4 +16,8 @@ public class QuantityException extends RuntimeException {
     public QuantityException(int quantity){
         super(quantity + " is not a valid quantity");
     }
+
+    public QuantityException() {
+        super("This event does not require any bookings");
+    }
 }

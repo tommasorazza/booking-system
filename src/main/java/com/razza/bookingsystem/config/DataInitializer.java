@@ -12,7 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.OffsetDateTime;
 import java.util.*;
 
-// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
 /**
  * Initializes sample data in the database at application startup.
@@ -277,7 +276,7 @@ public class DataInitializer {
                         .name("Funky jazz event")
                         .description("Artists will play jazz and funk")
                         .location("main bar")
-                        .date(OffsetDateTime.parse("2026-07-01T18:00:00+02:00"))
+                        .date(OffsetDateTime.parse("2026-07-01T16:00:00+02:00"))
                         .bookingPolicy(new BookingPolicy(30,26))
                         .venue(venueA)
                         .status(Status.CONFIRMED)
@@ -335,8 +334,8 @@ public class DataInitializer {
                         .name("funky music event")
                         .description("Adrien will play funky music")
                         .location("the underground bar")
-                        .date(OffsetDateTime.parse("2026-07-02T20:00:00+02:00"))
-                        .bookingPolicy(null)
+                        .date(OffsetDateTime.parse("2026-06-02T20:00:00+02:00"))
+                        .bookingPolicy(new BookingPolicy(30))
                         .venue(venueA)
                         .status(Status.CONFIRMED)
                         .schedule(List.of(
@@ -392,6 +391,15 @@ public class DataInitializer {
                         .createdAt(OffsetDateTime.now())
                         .build();
 
+                Booking booking3 = Booking.builder()
+                        .user(alice)
+                        .event(event3)
+                        .venue(venueA)
+                        .quantity(5)
+                        .status(Status.CONFIRMED)
+                        .createdAt(OffsetDateTime.now().minusMonths(2))
+                        .build();
+
                 Booking booking4 = Booking.builder()
                         .user(bob)
                         .event(event4)
@@ -401,9 +409,12 @@ public class DataInitializer {
                         .createdAt(OffsetDateTime.now())
                         .build();
 
+
+
                 bookingRepository.save(booking1);
                 bookingRepository.save(booking2);
                 bookingRepository.save(booking4);
+                bookingRepository.save(booking3);
             }
         };
     }

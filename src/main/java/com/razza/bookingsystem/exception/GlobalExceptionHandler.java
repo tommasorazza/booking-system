@@ -1,7 +1,9 @@
 package com.razza.bookingsystem.exception;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
@@ -156,6 +158,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCapacityException.class)
     public ResponseEntity<Map<String, Object>> handleBadCapacity(BadCapacityException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {   // spring exception thrown when JSON can't deserialize the body
+        Throwable cause = ex.getCause();
+        if (cause instanceof InvalidFormatException ife) {
+            if (ife.getTargetType() != null && ife.getTargetType().isEnum()) { //.getTargetType() returns the java Class that JSON is failing to deserialize
+                String invalidValue = ife.getValue().toString(); //.getValue().toString() returns the actual value that JSON is failing to deserialize
+                String enumName = ife.getTargetType().getSimpleName(); // Class name (Role in this case)
+                return buildResponse(HttpStatus.BAD_REQUEST, "Invalid value '" + invalidValue + "' for " + enumName);
+            }
+        }
+        return buildResponse(HttpStatus.BAD_REQUEST, "Malformed request body"); //should the problem be somewhere else
     }
 
     /**

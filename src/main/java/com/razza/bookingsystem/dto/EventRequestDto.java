@@ -37,4 +37,5 @@ public class EventRequestDto {
     private List<TimeSlot> schedule;
 
     private Boolean eighteenPlus;
+
 }

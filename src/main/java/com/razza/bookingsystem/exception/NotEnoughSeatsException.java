@@ -2,7 +2,7 @@ package com.razza.bookingsystem.exception;
 
 /**
  * Thrown when a user tries to book more seats than are currently available
- * for a event.
+ * for an event.
  *
  * This exception enforces the business rule that bookings cannot exceed
  * the event's available capacity.
@@ -15,7 +15,7 @@ public class NotEnoughSeatsException extends RuntimeException {
      *
      * @param availableSeats the number of seats still available for booking
      */
-    public NotEnoughSeatsException() {
-        super("Not enough seats available for the booking, remaining available: ");
+    public NotEnoughSeatsException(int availableSeats) {
+        super("Not enough seats available for the booking, remaining available: " + availableSeats);
     }
 }

@@ -86,7 +86,7 @@ public class EventService {
             throw new PastEventException(event.getDate());
         }
 
-        isScheduleValid(dto.getSchedule(), dto.getDate(), venue);
+        isScheduleValid(dto.getSchedule(), dto.getDate(), dto.getLocation(), venue);
 
         if(dto.getTotalCapacity() != null){
             BookingPolicy bookingPolicy = new BookingPolicy(dto.getTotalCapacity());
@@ -160,7 +160,7 @@ public class EventService {
         event.setLocation(dto.getLocation());
         event.setDate(dto.getDate());
 
-        isScheduleValid(dto.getSchedule(), dto.getDate(), venue);
+        isScheduleValid(dto.getSchedule(), dto.getDate(), dto.getLocation(), venue);
 
         if(dto.getTotalCapacity() != null && event.getBookingPolicy() != null) {
             if (event.getBookingPolicy().getTotalCapacity() > dto.getTotalCapacity()) {
@@ -261,22 +261,34 @@ public class EventService {
                 .map(eventMapper::toDto);
     }
 
-    private void isScheduleValid(List<TimeSlot> schedule, OffsetDateTime eventDate, Venue venue) {
+    private void isScheduleValid(List<TimeSlot> schedule, OffsetDateTime eventStartTime, String location, Venue venue) {
 
         if(schedule.isEmpty()){
             throw new EmptyScheduleException();
         }
 
-        long startMinutes = ChronoUnit.MINUTES.between(eventDate, schedule.get(0).getStartTime());
+        long startMinutes = ChronoUnit.MINUTES.between(eventStartTime, schedule.getFirst().getStartTime());
         if(startMinutes > 600){
             throw new InvalidScheduleException(startMinutes);
         }
 
+        if(schedule.getFirst().getStartTime().isBefore(eventStartTime)) {
+            throw InvalidScheduleException.slotInThePast();
+        }
+
+        if(eventRepository.findByVenue(venue).stream().filter(event -> (event.getDate().isAfter(eventStartTime) && event.getDate().isBefore(schedule.getLast().getEndTime()) && event.getLocation().equals(location))
+                || (event.getEndTime().isAfter(eventStartTime) && event.getEndTime().isBefore(schedule.getLast().getEndTime()) && event.getLocation().equals(location))
+                || (event.getDate()).isBefore(eventStartTime) && event.getEndTime().isAfter(schedule.getLast().getEndTime()) && event.getLocation().equals(location)
+            ).toList().size() > 0) {
+            throw InvalidScheduleException.overlapping();
+        }
+
+        OffsetDateTime endTimeVar = OffsetDateTime.MIN;
         for(TimeSlot slot : schedule) {
             Performance performance = performanceRepository.findById(slot.getPerformanceId())
                     .orElseThrow(() -> new ResourceNotFoundException("performance", slot.getPerformanceId()));
             if (userRepository.findByEmailAndVenueAndRole(slot.getUserEmail(), venue, Role.PERFORMER).isEmpty()){
-                throw new InvalidScheduleException(slot.getUserEmail());
+                throw InvalidScheduleException.unregisteredEmail(slot.getUserEmail());
             }
             if(!performance.getUser().getEmail().equals(slot.getUserEmail())){
                 throw new PerformanceNotMatchingUserException(slot.getPerformanceId(), slot.getUserEmail());
@@ -284,10 +296,13 @@ public class EventService {
             if(performance.getPerformanceType() == PerformanceType.INACTIVE){
                 throw new InactivePerformanceException(slot.getPerformanceId());
             }
-
+            if(slot.getStartTime().isBefore(endTimeVar)) {
+                throw InvalidScheduleException.inconsistentSlots();
+            }
             if(slot.getEndTime().isBefore(slot.getStartTime())) {
                 throw new InvalidScheduleException();
             }
+            endTimeVar = slot.getEndTime();
             long minutes = ChronoUnit.MINUTES.between(slot.getStartTime(), slot.getEndTime());
             if(minutes != performance.getDuration()){
                 throw new InvalidScheduleException(slot);
