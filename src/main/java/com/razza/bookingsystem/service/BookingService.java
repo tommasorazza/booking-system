@@ -183,7 +183,7 @@ public class BookingService {
         int result = eventRepository.decreaseCapacity(event.getId(), quantity - booking.getQuantity());
 
         if(result == 0){
-            throw new NotEnoughSeatsException(event.getBookingPolicy().getAvailableCapacity());
+            throw new NotEnoughSeatsException(event.getBookingPolicy().getAvailableCapacity(), booking.getQuantity());
         }
 
         booking.setQuantity(quantity);
@@ -217,7 +217,7 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId));
 
         if(booking.getStatus().equals(CANCELLED)){
-            throw new IllegalStateException("booking is already canceled");
+            throw new BookingAlreadyCancelledException();
         }
 
         Event event = booking.getEvent();

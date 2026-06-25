@@ -18,4 +18,8 @@ public class NotEnoughSeatsException extends RuntimeException {
     public NotEnoughSeatsException(int availableSeats) {
         super("Not enough seats available for the booking, remaining available: " + availableSeats);
     }
+
+    public NotEnoughSeatsException(int availableSeats, int quantity) {
+        super("not enough seats available for the booking, remaining available: " + (availableSeats + quantity));
+    }
 }

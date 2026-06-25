@@ -132,7 +132,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidScheduleException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidSchedule(InvalidScheduleException ex) {
-        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+        if(ex.isConflict()){
+            return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+        } else {
+            return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
     }
 
     @ExceptionHandler(InvalidRoleException.class)
