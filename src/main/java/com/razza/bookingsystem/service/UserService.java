@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
+import static com.razza.bookingsystem.domain.Role.GUEST;
 import static com.razza.bookingsystem.domain.Role.PERFORMER;
 import static java.util.stream.Collectors.toList;
 import static org.hibernate.Hibernate.list;
@@ -51,7 +52,7 @@ public class UserService {
      */
     public UserDto makeAdmin(UUID userId, Venue venue) {
 
-        User user = userRepository.findByIdAndVenueId(userId, venue.getId())
+        User user = userRepository.findByIdAndVenueAndRole(userId, venue, GUEST)
                 .orElseThrow(() -> new ResourceNotFoundException("user", userId));
 
         user.setRole(Role.ADMIN);

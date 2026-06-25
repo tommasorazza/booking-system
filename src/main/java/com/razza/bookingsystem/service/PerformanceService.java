@@ -30,11 +30,22 @@ public class PerformanceService {
     private final UserRepository userRepository;
     private final PerformanceMapper performanceMapper;
 
-    @Value("{app.timezone}")
+    @Value("${app.timezone}")   // ${} -> application property placeholder
     private String timezone;
 
     @Transactional
-    public List<ScheduledPerformanceDto> getPerformances(CustomUserDetails user) {
+    public List<ScheduledPerformanceDto> getPerformances(UUID userId, UUID currentUserId, Boolean isAdmin, Venue venue) {
+
+        User user;
+
+        if(isAdmin){
+            user = userRepository.findByIdAndVenueId(userId, venue.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("user", userId));
+        } else {
+            user = userRepository.findByIdAndVenueAndRole(currentUserId, venue, PERFORMER)
+                    .orElseThrow(() -> new ResourceNotFoundException("user", userId));
+        }
+
         return eventRepository.findByVenue(user.getVenue())
                 .stream()
                 .filter(event -> event.getDate().isAfter(OffsetDateTime.now()))
@@ -50,10 +61,17 @@ public class PerformanceService {
     }
 
     @Transactional
-    public void addPerformance(PerformanceDto performanceDto, String email, Venue venue){
+    public void addPerformance(PerformanceDto performanceDto, UUID userId, UUID currentUserId, Boolean isAdmin, Venue venue){
 
-        User user = userRepository.findByEmailAndVenueAndRole(email, venue, PERFORMER)
-                .orElseThrow(() -> new ResourceNotFoundException("user"));
+        User user;
+
+        if(isAdmin){
+            user = userRepository.findByIdAndVenueId(userId, venue.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("user", userId));
+        } else {
+            user = userRepository.findByIdAndVenueAndRole(currentUserId, venue, PERFORMER)
+                    .orElseThrow(() -> new ResourceNotFoundException("user", userId));
+        }
 
         Performance performance;
 
@@ -77,10 +95,11 @@ public class PerformanceService {
     }
 
     @Transactional
-    public void restorePerformance(UUID performanceId, PerformanceType performanceType) {
+    public void modifyPerformance(UUID performanceId, PerformanceType performanceType, int duration) {
         Performance performance = performanceRepository.findById(performanceId)
                 .orElseThrow(() -> new ResourceNotFoundException("performance", performanceId));
 
         performance.setPerformanceType(performanceType);
+        performance.setDuration(duration);
     }
 }

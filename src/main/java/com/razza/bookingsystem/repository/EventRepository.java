@@ -16,6 +16,8 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.*;
 
+import static com.razza.bookingsystem.domain.Status.CANCELLED;
+
 /**
  * Repository interface for {@link Event} entities.
  * Provides CRUD operations and custom queries for events.
@@ -96,6 +98,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     FROM Event e
     WHERE e.date BETWEEN :start AND :end
     AND e.venue = :venue
+    AND e.status = :status
     """)
-    List<Event> findByDateAndVenue(OffsetDateTime start, OffsetDateTime end, Venue venue);
+    List<Event> findByDateAndVenueAndStatus(OffsetDateTime start, OffsetDateTime end, Venue venue, Status status);
 }

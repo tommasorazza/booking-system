@@ -25,30 +25,40 @@ public class PerformanceController {
 
     private final PerformanceService performanceService;
 
-    @PreAuthorize("hasRole('PERFORMER')")
+    @PreAuthorize("hasAnyRole('PERFORMER', 'ADMIN')")
     @GetMapping
-    public List<ScheduledPerformanceDto> getPerformances(@AuthenticationPrincipal CustomUserDetails user){
-        return performanceService.getPerformances(user);
+    public List<ScheduledPerformanceDto> getPerformances(@RequestParam(required = false) UUID userId, @AuthenticationPrincipal CustomUserDetails user){
+
+        return performanceService.getPerformances(userId, user.getId(), isAdmin(user), user.getVenue());
     }
 
-    @PreAuthorize("hasRole('PERFORMER')")
+    @PreAuthorize("hasAnyRole('PERFORMER', 'ADMIN')")
     @PostMapping
-    public void addPerformance(@RequestBody PerformanceDto performanceDto, @AuthenticationPrincipal CustomUserDetails user){
-        String userEmail = user.getEmail();
-        Venue venue = user.getVenue();
-        performanceService.addPerformance(performanceDto, userEmail, venue);
+    public void addPerformance(@RequestBody PerformanceDto performanceDto, @RequestParam(required = false) UUID userId, @AuthenticationPrincipal CustomUserDetails user){
+        performanceService.addPerformance(performanceDto, userId, user.getId(), isAdmin(user), user.getVenue());
     }
 
-    @PreAuthorize("hasRole('PERFORMER')")
+    @PreAuthorize("hasAnyRole('PERFORMER', 'ADMIN')")
     @DeleteMapping
     public void deletePerformance(@RequestParam UUID performanceId){
         performanceService.deletePerformance(performanceId);
     }
 
-    @PreAuthorize("hasRole('PERFORMER')")
+    @PreAuthorize("hasAnyRole('PERFORMER', 'ADMIN')")
     @PutMapping("/{performanceId}")
-    public void restorePerformance(@PathVariable UUID performanceId, @RequestParam PerformanceType performanceType){
-        performanceService.restorePerformance(performanceId, performanceType);
+    public void modifyPerformance(@PathVariable UUID performanceId, @RequestParam PerformanceType performanceType, @RequestParam int duration){
+        performanceService.modifyPerformance(performanceId, performanceType, duration);
     }
 
+    /**
+     * Checks whether the authenticated user has admin privileges.
+     *
+     * @param auth the Authentication object
+     * @return true if the user has ROLE_ADMIN, false otherwise
+     */
+    private boolean isAdmin(CustomUserDetails user) {
+        return user.getAuthorities()
+                .stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
 }

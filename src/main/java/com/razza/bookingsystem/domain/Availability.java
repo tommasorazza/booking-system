@@ -1,8 +1,8 @@
 package com.razza.bookingsystem.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.Builder;
 
 import java.util.UUID;
 
@@ -40,5 +40,18 @@ public class Availability {
         this.friday = friday;
         this.saturday = saturday;
         this.sunday = sunday;
+    }
+
+    public Boolean getDay(String day){
+        return switch (day) {
+            case "monday" -> this.user.getAvailability().getMonday();
+            case "tuesday" -> this.user.getAvailability().getTuesday();
+            case "wednesday" -> this.user.getAvailability().getWednesday();
+            case "thursday" -> this.user.getAvailability().getThursday();
+            case "friday" -> this.user.getAvailability().getFriday();
+            case "saturday" -> this.user.getAvailability().getSaturday();
+            case "sunday" -> this.user.getAvailability().getSunday();
+            default -> false;
+        };
     }
 }

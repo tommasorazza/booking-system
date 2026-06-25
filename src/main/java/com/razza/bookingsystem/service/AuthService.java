@@ -145,6 +145,14 @@ public class AuthService {
      */
     public String login(String email, String password, String venueName) {
 
+        Venue venue = venueRepository.findByName(venueName).orElseThrow(() -> new ResourceNotFoundException("venue"));
+
+        User user = userRepository.findByEmailAndVenue(email, venue).orElseThrow(() -> new ResourceNotFoundException("user"));
+
+        if(user.getStatus().equals(Status.CANCELLED)) {
+            throw new ResourceNotFoundException("user");
+        }
+
         String username = email + "|" + venueName;
 
         Authentication authentication = authenticationManager.authenticate(
