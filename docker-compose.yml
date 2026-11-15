@@ -1,10 +1,10 @@
 services:
   db:
     container_name: booking-postgres
-    image: postgres:latest
+    image: postgres:16.4
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: passw0rd!
+      POSTGRES_USER: ${DB_USERNAME:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-passw0rd}
       POSTGRES_DB: bookingsystem
       PGDATA: /data/postgres
     volumes:

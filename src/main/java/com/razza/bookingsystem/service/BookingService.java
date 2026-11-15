@@ -76,10 +76,6 @@ public class BookingService {
             throw new PastEventException(event.getDate());
         }
 
-        if (!event.getVenue().getId().equals(venue.getId())) {
-            throw new ResourceNotFoundException("event", eventId);
-        }
-
         if(event.getBookingPolicy() == null ){
             throw new QuantityException();
         }
@@ -96,8 +92,7 @@ public class BookingService {
             }
         }
 
-        if(event.getEighteenPlus() && ChronoUnit.YEARS.between(currentUser.getBirthDate(), OffsetDateTime.now()) < 18) {
-            throw new invalidAgeException();
+        if(Boolean.TRUE.equals(event.getEighteenPlus()) && ChronoUnit.YEARS.between(currentUser.getBirthDate(), OffsetDateTime.now()) < 18) {            throw new invalidAgeException();
         }
 
         var existingBooking = bookingRepository.findByUserAndEventAndStatus(currentUser, event, CONFIRMED);
@@ -209,7 +204,7 @@ public class BookingService {
      * @throws ResourceNotFoundException if the booking does not exist within the venue
      * @throws AccessDeniedException if the user is not allowed to cancel the booking
      * @throws BookingAlreadyCancelledException if the booking is already canceled
-     */
+     */ 
     @Transactional
     public void cancelBooking(UUID bookingId, User currentUser, Venue venue, boolean isAdmin) {
 
@@ -236,7 +231,6 @@ public class BookingService {
 
         eventRepository.increaseCapacity(event.getId(), booking.getQuantity());
         bookingRepository.deleteBooking(bookingId);
-
     }
 
     /**

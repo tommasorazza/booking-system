@@ -71,7 +71,7 @@ public class UserController {
     @PreAuthorize("hasRole('PERFORMER')")
     @PutMapping("/me/availability")
     public void modifyAvailability(@RequestBody String availability, @AuthenticationPrincipal CustomUserDetails user){
-        userService.modifyAvailability(availability, user);
+        userService.modifyAvailability(availability, user.getEmail(), user.getVenue());
     }
 
 }

@@ -55,10 +55,7 @@ public class BookingController {
         if(targetUser != null && targetUser.getRole() == Role.PERFORMER) {
             throw InvalidRoleException.wrongBookingRole();
         }
-
-        Boolean isAdmin = user.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
+        
         User currentUser = userRepository.findById(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("user", user.getId()));
 
@@ -68,7 +65,7 @@ public class BookingController {
                 currentUser,
                 user.getVenue(),
                 quantity,
-                isAdmin
+                isAdmin(user)
         );
     }
 

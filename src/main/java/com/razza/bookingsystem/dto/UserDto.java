@@ -1,14 +1,11 @@
 package com.razza.bookingsystem.dto;
 
-import com.razza.bookingsystem.domain.Availability;
-import com.razza.bookingsystem.domain.Performance;
 import com.razza.bookingsystem.domain.Role;
 import com.razza.bookingsystem.domain.Venue;
 import jakarta.annotation.Nullable;
 import lombok.*;
 
 import java.time.OffsetDateTime;
-import java.util.HashMap;
 import java.util.Set;
 import java.util.UUID;
 

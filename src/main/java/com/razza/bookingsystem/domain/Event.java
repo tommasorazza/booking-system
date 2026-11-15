@@ -20,7 +20,7 @@ import java.util.UUID;
 @Builder
 @Table(
         name = "event",
-        indexes = {@Index(name = "event_user_index", columnList = "venueId")}
+        indexes = {@Index(name = "event_user_index", columnList = "venue_id")}
 )
 public class Event {
 

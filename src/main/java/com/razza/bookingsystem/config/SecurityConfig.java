@@ -60,12 +60,12 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                // Disable CSRF because the API uses JWT-based stateless authentication
+                // Disable CSRF because the API uses JWT-based stateless authentication, CSRF means cross site request forgery, it is a safety measure against malicious attempts to access your session through the cookie info, irrelevant in this case
                 .csrf(AbstractHttpConfigurer::disable)
                 // Make all the HTTP requests stateless
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                // Returns 401 for unauthorized requests
+                // Returns 401 for unauthorized requests, instead of redirecting them to the login page
                 ).exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
                                 response.sendError(HttpStatus.UNAUTHORIZED.value(),
@@ -82,14 +82,14 @@ public class SecurityConfig {
                         // Require authentication for all other endpoints
                         .anyRequest().authenticated()
                 )
-                // Set the authentication provider (DAO + password encoder)
+                // Set the authentication provider (DAO + password encoder), DAO (data access object) authentication provider is a built-in class that takes your username and calls userDetailsService -> userRepository and checks your username against hashed password to verify they match
                 .authenticationProvider(authenticationProvider())
                 // Add JWT filter before the default username/password authentication filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
 
 
-        return http.build();
+        return http.build();        // this returns securityFilterChain object
     }
 
     /**
@@ -121,7 +121,7 @@ public class SecurityConfig {
      * @throws Exception if there is a problem creating the authentication manager
      */
     @Bean
-    public org.springframework.security.authentication.AuthenticationManager authenticationManager(
+    public org.springframework.security.authentication.AuthenticationManager authenticationManager(                     // config is an autoconfigured spring security class that knows how to assemble an authentication manager object from the already specified DAOAuthenticationProvider
             org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration config
     ) throws Exception {
         return config.getAuthenticationManager();

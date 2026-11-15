@@ -1,5 +1,6 @@
 package com.razza.bookingsystem.concurrency.booking;
 
+import com.razza.bookingsystem.concurrency.PostgresConcurrencyTestBase;
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.EventRepository;
@@ -39,9 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * This ensures that concurrent modifications do not corrupt capacity.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-@SpringBootTest
-@ActiveProfiles("test")
-class ModifyBookingConcurrencyTest {
+class ModifyBookingConcurrencyTest extends PostgresConcurrencyTestBase {
 
     @Autowired
     private BookingService bookingService;

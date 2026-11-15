@@ -12,7 +12,6 @@ import com.razza.bookingsystem.service.EventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -21,10 +20,10 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import jakarta.validation.Valid;
 
 /**
  * Controller for managing events.
@@ -48,7 +47,7 @@ public class EventController {
      */
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public EventResponseDto createEvent(@RequestBody EventRequestDto dto,
+    public EventResponseDto createEvent(@Valid @RequestBody EventRequestDto dto,
                                         @AuthenticationPrincipal CustomUserDetails user) {
 
         return eventService.createEvent(dto, user.getVenue());
@@ -123,7 +122,7 @@ public class EventController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public EventResponseDto updateEvent(@PathVariable UUID id,
-                                        @RequestBody EventRequestDto dto,
+                                        @Valid @RequestBody EventRequestDto dto,
                                         @AuthenticationPrincipal CustomUserDetails user) {
 
         return eventService.updateEvent(id, dto, user.getVenue());

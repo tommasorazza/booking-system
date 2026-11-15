@@ -20,6 +20,8 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.OffsetDateTime;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -50,15 +52,26 @@ class AuthControllerIntegrationTest {
                 .build());
     }
 
+    /**
+     * Builds a complete, valid signup body. Tests override only the fields they care about,
+     * because @Valid on the controller rejects incomplete requests with 400.
+     */
+    private SignupRequest.SignupRequestBuilder validSignup() {
+        return SignupRequest.builder()
+                .name("New User")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00Z"))
+                .role(Role.GUEST)
+                .password("securepassword")
+                .venueName("VenueA");
+    }
+
     // POST /auth/signup
 
     @Transactional
     @Test
     void signup_validRequest_returns200WithUserDto() throws Exception {
-        SignupRequest request = SignupRequest.builder()
+        SignupRequest request = validSignup()
                 .email("newuser@a.com")
-                .password("securepassword")
-                .venueName("VenueA")
                 .build();
 
         mockMvc.perform(post("/auth/signup")
@@ -72,10 +85,9 @@ class AuthControllerIntegrationTest {
     @Transactional
     @Test
     void signup_duplicateEmail_returns409() throws Exception {
-        SignupRequest request = SignupRequest.builder()
+        SignupRequest request = validSignup()
                 .email("user@a.com")        // already exists in setUp()
                 .password("anypassword")
-                .venueName("VenueA")
                 .build();
 
         mockMvc.perform(post("/auth/signup")
@@ -87,7 +99,7 @@ class AuthControllerIntegrationTest {
     @Transactional
     @Test
     void signup_nonExistentVenue_returns404() throws Exception {
-        SignupRequest request = SignupRequest.builder()
+        SignupRequest request = validSignup()
                 .email("ghost@nowhere.com")
                 .password("anypassword")
                 .venueName("NonExistentVenue")
@@ -97,6 +109,20 @@ class AuthControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Transactional
+    @Test
+    void signup_invalidBody_returns400() throws Exception {
+        // missing name, birthDate, role, password and venueName, and the email is malformed
+        SignupRequest request = SignupRequest.builder()
+                .email("not-an-email")
+                .build();
+
+        mockMvc.perform(post("/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 
     // POST /auth/login

@@ -46,7 +46,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
      * @param quantity the number of seats to subtract from available capacity
      * @return the number of rows affected (1 if successful, 0 if not enough capacity)
      */
-    @Modifying(flushAutomatically = true, clearAutomatically = false)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Transactional
     @Query(value = """
     UPDATE Event e
@@ -56,7 +56,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     int decreaseCapacity(UUID id, int quantity);
 
     /**
-     * Atomically increases the available capacity of a event.
+     * Atomically increases the available capacity of an event.
      *
      * This operation is performed as a single database update to ensure
      * thread safety under concurrent booking requests.
@@ -83,7 +83,6 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
      * @param venue the venue to which the event belongs
      * @return an Optional containing the Event if found, or empty if none exists
      */
-    @Transactional
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
     SELECT e
@@ -92,7 +91,6 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     """)
     Optional<Event> findByIdAndVenue(UUID id, Venue venue);
 
-    @Transactional
     @Query("""
     SELECT e
     FROM Event e

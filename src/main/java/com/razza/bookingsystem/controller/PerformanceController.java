@@ -1,9 +1,6 @@
 package com.razza.bookingsystem.controller;
 
-import com.razza.bookingsystem.domain.Event;
-import com.razza.bookingsystem.domain.Performance;
 import com.razza.bookingsystem.domain.PerformanceType;
-import com.razza.bookingsystem.domain.Venue;
 import com.razza.bookingsystem.dto.PerformanceDto;
 import com.razza.bookingsystem.dto.ScheduledPerformanceDto;
 import com.razza.bookingsystem.security.CustomUserDetails;
@@ -12,9 +9,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
-import java.time.OffsetDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,7 +30,7 @@ public class PerformanceController {
 
     @PreAuthorize("hasAnyRole('PERFORMER', 'ADMIN')")
     @PostMapping
-    public void addPerformance(@RequestBody PerformanceDto performanceDto, @RequestParam(required = false) UUID userId, @AuthenticationPrincipal CustomUserDetails user){
+    public void addPerformance(@Valid @RequestBody PerformanceDto performanceDto, @RequestParam(required = false) UUID userId, @AuthenticationPrincipal CustomUserDetails user){
         performanceService.addPerformance(performanceDto, userId, user.getId(), isAdmin(user), user.getVenue());
     }
 

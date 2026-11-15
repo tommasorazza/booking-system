@@ -1,10 +1,9 @@
 package com.razza.bookingsystem.service;
 
-import com.razza.bookingsystem.domain.Role;
-import com.razza.bookingsystem.domain.Status;
-import com.razza.bookingsystem.domain.Venue;
-import com.razza.bookingsystem.domain.User;
+import com.razza.bookingsystem.domain.*;
+import com.razza.bookingsystem.dto.AvailabilityDto;
 import com.razza.bookingsystem.dto.UserDto;
+import com.razza.bookingsystem.exception.InvalidRoleException;
 import com.razza.bookingsystem.exception.ResourceNotFoundException;
 import com.razza.bookingsystem.exception.UserDeleteException;
 import com.razza.bookingsystem.mapper.UserMapper;
@@ -12,18 +11,23 @@ import com.razza.bookingsystem.repository.BookingRepository;
 import com.razza.bookingsystem.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.Nested;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 /**
@@ -43,8 +47,9 @@ class UserServiceTest {
     private UserService userService;
 
     private Venue venue;
-    private User user;
-    private UUID userId;
+    private User guest, performer, secondPerformer;
+    private UUID userId, performerId;
+    private UserDto performerDto, secondPerformerDto;
 
     /**
      * Sets up a default venue and user before each test.
@@ -54,179 +59,364 @@ class UserServiceTest {
     void setUp() {
         venue = Venue.builder()
                 .id(UUID.randomUUID())
-                .name("acme")
+                .name("music bar")
                 .build();
 
         userId = UUID.randomUUID();
+        performerId = UUID.randomUUID();
 
-        user = User.builder()
+        guest = User.builder()
                 .id(userId)
-                .email("user@example.com")
+                .name("first guest")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00.000+02:00"))
+                .email("guest@example.com")
                 .password("hashedPassword")
                 .role(Role.GUEST)
                 .venue(venue)
-                .build();
-    }
-
-
-    /**
-     * Given a valid user in the venue, makeAdmin should return a UserDto
-     * reflecting the updated ADMIN role and the original email address.
-     */
-    @Transactional
-    @Test
-    void makeAdmin_success_returnsUpdatedUserDto() {
-        UserDto adminDto = UserDto.builder()
-                .id(userId)
-                .email("user@example.com")
-                .role(Role.ADMIN)
+                .status(Status.CONFIRMED)
+                .performances(null)
+                .availability(null)
                 .build();
 
-        when(userRepository.findByIdAndVenueId(userId, venue.getId()))
-                .thenReturn(Optional.of(user));
-        when(userRepository.save(user)).thenReturn(user);
-        when(userMapper.toDto(user)).thenReturn(adminDto);
+        performer = User.builder()
+                .id(performerId)
+                .name("first performer")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00.000+02:00"))
+                .email("performer@example.com")
+                .password("hashedPassword")
+                .role(Role.PERFORMER)
+                .venue(venue)
+                .status(Status.CONFIRMED)
+                .performances(null)
+                .availability(new Availability(true,true,true,true,false,false,false))
+                .build();
 
-        UserDto result = userService.makeAdmin(userId, venue);
+        performerDto = UserDto.builder()
+                .id(performerId)
+                .name("first performer")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00.000+02:00"))
+                .email("performer@example.com")
+                .role(Role.PERFORMER)
+                .venue(venue)
+                .availability(new AvailabilityDto(true,true,true,true,false,false,false))
+                .performances(null)
+                .build();
 
-        assertThat(result).isNotNull();
-        assertThat(result.getRole()).isEqualTo(Role.ADMIN);
-        assertThat(result.getEmail()).isEqualTo("user@example.com");
+        secondPerformer = User.builder()
+                .id(performerId)
+                .name("second performer")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00.000+02:00"))
+                .email("secondPerformer@example.com")
+                .password("hashedPassword")
+                .role(Role.PERFORMER)
+                .venue(venue)
+                .status(Status.CONFIRMED)
+                .performances(null)
+                .availability(new Availability(false,false,false,false,true,true,true))
+                .build();
+
+        secondPerformerDto = UserDto.builder()
+                .id(performerId)
+                .name("second performer")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00.000+02:00"))
+                .email("secondPerformer@example.com")
+                .role(Role.PERFORMER)
+                .venue(venue)
+                .availability(new AvailabilityDto(false,false,false,false,true,true,true))
+                .performances(null)
+                .build();
+
+
     }
 
-    /**
-     * makeAdmin should mutate the user entity's role to ADMIN before saving.
-     */
-    @Transactional
-    @Test
-    void makeAdmin_updatesUserRoleToAdmin() {
-        when(userRepository.findByIdAndVenueId(userId, venue.getId()))
-                .thenReturn(Optional.of(user));
-        when(userRepository.save(any(User.class))).thenReturn(user);
-        when(userMapper.toDto(any())).thenReturn(new UserDto());
+    @Nested
+    @DisplayName("makeAdmin")
+    class MakeAdmin {
+        /**
+         * Given a valid user in the venue, makeAdmin should return a UserDto
+         * reflecting the updated ADMIN role and the original email address.
+         */
+        @Transactional
+        @Test
+        void makeAdmin_success_returnsUpdatedUserDto() {
+            UserDto adminDto = UserDto.builder()
+                    .id(userId)
+                    .name("first guest")
+                    .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00.000+02:00"))
+                    .email("guest@example.com")
+                    .role(Role.ADMIN)
+                    .venue(venue)
+                    .availability(null)
+                    .performances(null)
+                    .build();
 
-        userService.makeAdmin(userId, venue);
+            when(userRepository.findByIdAndVenueAndRole(userId, venue, Role.GUEST))
+                    .thenReturn(Optional.of(guest));
+            when(userRepository.save(guest)).thenReturn(guest);
+            when(userMapper.toDto(guest)).thenReturn(adminDto);
 
-        assertThat(user.getRole()).isEqualTo(Role.ADMIN);
+            UserDto result = userService.makeAdmin(userId, venue);
+
+            assertThat(result).isNotNull();
+            assertThat(result.getRole()).isEqualTo(Role.ADMIN);
+            assertThat(result.getEmail()).isEqualTo("guest@example.com");
+        }
+
+        /**
+         * Given a valid perfomer in the venue, makeAdmin should throw a
+         * ResourceNotFoundException given that performers can't be made admins
+         */
+        @Transactional
+        @Test
+        void makeAdmin_throwsResourceNotFoundException_whenUserIsPerformer() {
+
+            when(userRepository.findByIdAndVenueAndRole(performerId, venue, Role.GUEST))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.makeAdmin(performerId, venue))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining(performerId.toString());
+        }
+
+
+        /**
+         * makeAdmin should throw ResourceNotFoundException when no user with the
+         * given ID exists within the venue, and must not attempt to save anything.
+         */
+        @Transactional
+        @Test
+        void makeAdmin_throwsResourceNotFoundException_whenUserNotFound() {
+
+            UUID otherUserId = UUID.randomUUID();
+
+            when(userRepository.findByIdAndVenueAndRole(otherUserId, venue, Role.GUEST))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.makeAdmin(otherUserId, venue))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining(otherUserId.toString());
+        }
+
+
+        /**
+         * makeAdmin should throw ResourceNotFoundException when the user exists but
+         * belongs to a different venue, enforcing venue isolation.
+         */
+        @Transactional
+        @Test
+        void makeAdmin_userInDifferentVenue_throwsResourceNotFoundException() {
+            Venue otherVenue = Venue.builder().id(UUID.randomUUID()).name("other").build();
+            when(userRepository.findByIdAndVenueAndRole(userId, otherVenue, Role.GUEST))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.makeAdmin(userId, otherVenue))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
     }
 
-    /**
-     * makeAdmin should throw ResourceNotFoundException when no user with the
-     * given ID exists within the venue, and must not attempt to save anything.
-     */
-    @Transactional
-    @Test
-    void makeAdmin_throwsResourceNotFoundException_whenUserNotFoundInVenue() {
-        when(userRepository.findByIdAndVenueId(userId, venue.getId()))
-                .thenReturn(Optional.empty());
+    @Nested
+    @DisplayName("deleteUser")
+    class DeleteUser {
+        /**
+         * deleteUser should successfully soft delete a user who has no confirmed bookings.
+         */
+        @Transactional
+        @Test
+        void deleteUser_success_deletesUserWithNoActiveBookings() {
+            when(userRepository.findByIdAndVenueId(userId, venue.getId()))
+                    .thenReturn(Optional.of(guest));
+            when(bookingRepository.countByUserIdAndStatus(userId, Status.CONFIRMED))
+                    .thenReturn(0);
 
-        assertThatThrownBy(() -> userService.makeAdmin(userId, venue))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining(userId.toString());
+            userService.deleteUser(userId, venue);
 
-        verify(userRepository, never()).save(any());
+            assertEquals(Status.CANCELLED, guest.getStatus());
+        }
+
+        /**
+         * deleteUser should throw ResourceNotFoundException when no user with the
+         * given ID exists within the venue, and must not attempt to delete anything.
+         */
+        @Transactional
+        @Test
+        void deleteUser_throwsResourceNotFoundException_whenUserNotFoundInVenue() {
+            UUID otherUserId = UUID.randomUUID();
+            when(userRepository.findByIdAndVenueId(otherUserId, venue.getId()))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.deleteUser(otherUserId, venue))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        /**
+         * deleteUser should throw UserDeleteException when the user has one or more
+         * confirmed bookings, and the exception message should include the booking count.
+         */
+        @Transactional
+        @Test
+        void deleteUser_throwsUserDeleteException_whenUserHasConfirmedBookings() {
+            when(userRepository.findByIdAndVenueId(userId, venue.getId()))
+                    .thenReturn(Optional.of(guest));
+            when(bookingRepository.countByUserIdAndStatus(userId, Status.CONFIRMED))
+                    .thenReturn(3);
+
+            assertThatThrownBy(() -> userService.deleteUser(userId, venue))
+                    .isInstanceOf(UserDeleteException.class)
+                    .hasMessageContaining("3");
+        }
+
+
+        /**
+         * deleteUser should only check for CONFIRMED bookings; canceled or other
+         * statuses must not influence the deletion.
+         */
+        @Transactional
+        @Test
+        void deleteUser_checksOnlyConfirmedBookings() {
+            when(userRepository.findByIdAndVenueId(userId, venue.getId()))
+                    .thenReturn(Optional.of(guest));
+            when(bookingRepository.countByUserIdAndStatus(userId, Status.CONFIRMED))
+                    .thenReturn(0);
+
+            userService.deleteUser(userId, venue);
+
+            verify(bookingRepository).countByUserIdAndStatus(userId, Status.CONFIRMED);
+            verify(bookingRepository, never()).countByUserIdAndStatus(userId, Status.CANCELLED);
+        }
+
+        /**
+         * deleteUser should throw ResourceNotFoundException when the user exists but
+         * belongs to a different venue, enforcing venue isolation.
+         */
+        @Transactional
+        @Test
+        void deleteUser_userInDifferentVenue_throwsResourceNotFoundException() {
+            Venue otherVenue = Venue.builder().id(UUID.randomUUID()).name("other").build();
+            when(userRepository.findByIdAndVenueId(userId, otherVenue.getId()))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.deleteUser(userId, otherVenue))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
     }
 
-    /**
-     * makeAdmin should throw ResourceNotFoundException when the user exists but
-     * belongs to a different venue, enforcing venue isolation.
-     */
-    @Transactional
-    @Test
-    void makeAdmin_userInDifferentVenue_throwsResourceNotFoundException() {
-        Venue otherVenue = Venue.builder().id(UUID.randomUUID()).name("other").build();
-        when(userRepository.findByIdAndVenueId(userId, otherVenue.getId()))
-                .thenReturn(Optional.empty());
+    @Nested
+    @DisplayName("getAvailablePerformersByDate")
+    class GetAvailablePerformersByDate {
 
-        assertThatThrownBy(() -> userService.makeAdmin(userId, otherVenue))
-                .isInstanceOf(ResourceNotFoundException.class);
+        @Transactional
+        @Test
+        void getAvailablePerformersByDate_success_returnsPerformerDto() {
+
+            when(userRepository.findByRoleAndVenueId(Role.PERFORMER, venue.getId()))
+                    .thenReturn(List.of(performer));
+            when(userMapper.toDto(performer)).thenReturn(performerDto);
+
+            List<UserDto> result = userService.getAvailablePerformersByDate(LocalDate.of(2027,07,22), venue.getId());
+
+            assertEquals(1, result.size());
+            assertEquals(result.getFirst().getId(), performer.getId());
+            assertEquals(Role.PERFORMER, result.getFirst().getRole());
+            assertEquals(result.getFirst().getVenue().getId(), venue.getId());
+        }
+
+        @Transactional
+        @Test
+        void getAvailablePerformersByDate_success_returnsAllPerformersIfDateNull() {
+
+            when(userRepository.findByRoleAndVenueId(Role.PERFORMER, venue.getId()))
+                    .thenReturn(List.of(performer, secondPerformer));
+            when(userMapper.toDto(performer)).thenReturn(performerDto);
+            when(userMapper.toDto(secondPerformer)).thenReturn(performerDto);
+
+            List<UserDto> result = userService.getAvailablePerformersByDate(null, venue.getId());
+
+            assertEquals(2, result.size());
+            assertEquals(result.get(0).getId(), performer.getId());
+            assertEquals(result.get(1).getId(), secondPerformer.getId());
+        }
     }
 
-    /**
-     * deleteUser should successfully delete a user who has no confirmed bookings.
-     */
-    @Transactional
-    @Test
-    void deleteUser_success_deletesUserWithNoActiveBookings() {
-        when(userRepository.findByIdAndVenueId(userId, venue.getId()))
-                .thenReturn(Optional.of(user));
-        when(bookingRepository.countByUserIdAndStatus(userId, Status.CONFIRMED))
-                .thenReturn(0);
+    @Nested
+    @DisplayName("getPerformer")
+    class GetPerformer {
 
-        userService.deleteUser(userId, venue);
+        @Transactional
+        @Test
+        void getPerformer_success_returnsPerformer() {
 
-        verify(userRepository).delete(user);
+            when(userRepository.findByIdAndVenueAndRole(performer.getId(), venue, Role.PERFORMER))
+                    .thenReturn(Optional.of(performer));
+            when(userMapper.toDto(performer)).thenReturn(performerDto);
+
+            UserDto result = userService.getPerformer(performer.getId(), venue, Role.PERFORMER);
+
+            assertEquals(performer.getId(), result.getId());
+            assertEquals(Role.PERFORMER, result.getRole());
+        }
+
+        @Transactional
+        @Test
+        void getPerformer_throwsResourceNotFoundException_whenUserNotFoundInVenue() {
+
+            when(userRepository.findByIdAndVenueAndRole(performer.getId(), venue, Role.PERFORMER))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.getPerformer(performer.getId(), venue, Role.PERFORMER))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
     }
 
-    /**
-     * deleteUser should throw ResourceNotFoundException when no user with the
-     * given ID exists within the venue, and must not attempt to delete anything.
-     */
-    @Transactional
-    @Test
-    void deleteUser_throwsResourceNotFoundException_whenUserNotFoundInVenue() {
-        when(userRepository.findByIdAndVenueId(userId, venue.getId()))
-                .thenReturn(Optional.empty());
+    @Nested
+    @DisplayName("modifyAvailability")
+    class ModifyAvailability {
 
-        assertThatThrownBy(() -> userService.deleteUser(userId, venue))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining(userId.toString());
+        @Transactional
+        @Test
+        void modifyAvailability_success_modifiesPerformerAvailability() {
 
-        verify(userRepository, never()).delete(any());
-    }
+            when(userRepository.findByEmailAndVenue("performer@example.com", venue))
+                    .thenReturn(Optional.of(performer));
 
-    /**
-     * deleteUser should throw UserDeleteException when the user has one or more
-     * confirmed bookings, and the exception message should include the booking count.
-     */
-    @Transactional
-    @Test
-    void deleteUser_throwsUserDeleteException_whenUserHasConfirmedBookings() {
-        when(userRepository.findByIdAndVenueId(userId, venue.getId()))
-                .thenReturn(Optional.of(user));
-        when(bookingRepository.countByUserIdAndStatus(userId, Status.CONFIRMED))
-                .thenReturn(3);
+            when(userRepository.save(performer)).thenReturn(performer);
 
-        assertThatThrownBy(() -> userService.deleteUser(userId, venue))
-                .isInstanceOf(UserDeleteException.class)
-                .hasMessageContaining("3");
+            userService.modifyAvailability("monday", "performer@example.com", venue);
 
-        verify(userRepository, never()).delete(any());
-    }
+            assertEquals(true, performer.getAvailability().getMonday());
+            assertEquals(false, performer.getAvailability().getTuesday());
+            assertEquals(false, performer.getAvailability().getSaturday());
+        }
+
+        @Transactional
+        @Test
+        void modifyAvailability_throwsResourceNotFoundException_whenUserNotFoundInVenue() {
+
+            Venue otherVenue = Venue.builder()
+                    .id(UUID.randomUUID())
+                    .name("otherVenue")
+                    .build();
+
+            when(userRepository.findByEmailAndVenue("performer@example.com", otherVenue))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.modifyAvailability("monday", "performer@example.com", otherVenue))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+        }
+
+        @Transactional
+        @Test
+        void modifyAvailability_throwsInvalidRoleException_whenUserNotAPerformer() {
+
+            when(userRepository.findByEmailAndVenue("guest@example.com", venue))
+                    .thenReturn(Optional.of(guest));
 
 
-    /**
-     * deleteUser should only check for CONFIRMED bookings; canceled or other
-     * statuses must not influence the deletion.
-     */
-    @Transactional
-    @Test
-    void deleteUser_checksOnlyConfirmedBookings() {
-        when(userRepository.findByIdAndVenueId(userId, venue.getId()))
-                .thenReturn(Optional.of(user));
-        when(bookingRepository.countByUserIdAndStatus(userId, Status.CONFIRMED))
-                .thenReturn(0);
 
-        userService.deleteUser(userId, venue);
+            assertThatThrownBy(() -> userService.modifyAvailability("monday", "guest@example.com", venue))
+                    .isInstanceOf(InvalidRoleException.class)
+                    .hasMessageContaining("Wrong role: it must be performer");
+        }
 
-        verify(bookingRepository).countByUserIdAndStatus(userId, Status.CONFIRMED);
-        verify(bookingRepository, never()).countByUserIdAndStatus(userId, Status.CANCELLED);
-    }
-
-    /**
-     * deleteUser should throw ResourceNotFoundException when the user exists but
-     * belongs to a different venue, enforcing venue isolation.
-     */
-    @Transactional
-    @Test
-    void deleteUser_userInDifferentVenue_throwsResourceNotFoundException() {
-        Venue otherVenue = Venue.builder().id(UUID.randomUUID()).name("other").build();
-        when(userRepository.findByIdAndVenueId(userId, otherVenue.getId()))
-                .thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> userService.deleteUser(userId, otherVenue))
-                .isInstanceOf(ResourceNotFoundException.class);
-
-        verify(userRepository, never()).delete(any());
     }
 }

@@ -3,6 +3,8 @@ package com.razza.bookingsystem.service;
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.dto.PerformanceDto;
 import com.razza.bookingsystem.dto.UserDto;
+import com.razza.bookingsystem.exception.InvalidRoleException;
+import com.razza.bookingsystem.exception.InvalidScheduleException;
 import com.razza.bookingsystem.exception.ResourceNotFoundException;
 import com.razza.bookingsystem.exception.UserDeleteException;
 import com.razza.bookingsystem.mapper.AvailabilityMapper;
@@ -143,9 +145,12 @@ public class UserService {
         return userMapper.toDto(user);
     }
 
-    public void modifyAvailability(String availability, CustomUserDetails user){
-        User currentUser = userRepository.findByEmailAndVenue(user.getEmail(), user.getVenue())
-                .orElseThrow(() -> new ResourceNotFoundException("user", user.getId()));
+    public void modifyAvailability(String availability, String email, Venue venue){
+        User currentUser = userRepository.findByEmailAndVenue(email, venue)
+                .orElseThrow(() -> new ResourceNotFoundException("user"));
+        if(!currentUser.getRole().equals(PERFORMER)){
+            throw new InvalidRoleException("it must be performer");
+        }
 
         if (availability.contains("monday")) {
             currentUser.getAvailability().setMonday(true);

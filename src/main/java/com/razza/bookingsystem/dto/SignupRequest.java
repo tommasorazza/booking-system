@@ -1,10 +1,11 @@
 package com.razza.bookingsystem.dto;
 
-import com.razza.bookingsystem.domain.Performance;
 import com.razza.bookingsystem.domain.Role;
 import io.micrometer.common.lang.Nullable;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.time.OffsetDateTime;
@@ -23,7 +24,7 @@ public class SignupRequest {
     @NotBlank
     private String name;
 
-    @NotBlank
+    @NotNull
     private OffsetDateTime birthDate;
 
     @Email
@@ -33,7 +34,7 @@ public class SignupRequest {
     @NotBlank
     private String password;
 
-    @NotBlank
+    @NotNull
     private Role role;
 
     @NotBlank
@@ -42,6 +43,7 @@ public class SignupRequest {
     @Nullable
     private String availability;
 
+    @Valid
     @Nullable
     private Set<PerformanceDto> performances;
 }

@@ -1,5 +1,6 @@
 package com.razza.bookingsystem.concurrency.booking;
 
+import com.razza.bookingsystem.concurrency.PostgresConcurrencyTestBase;
 import com.razza.bookingsystem.domain.BookingPolicy;
 import com.razza.bookingsystem.domain.Event;
 import com.razza.bookingsystem.domain.Venue;
@@ -37,10 +38,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * This test ensures that the booking logic correctly handles
  * concurrent access and prevents overbooking.
  */
-@SpringBootTest
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-@org.springframework.test.context.ActiveProfiles("test")
-class BookingConcurrencyTest {
+class BookingConcurrencyTest extends PostgresConcurrencyTestBase {
 
     @Autowired
     private BookingService bookingService;
@@ -132,6 +131,8 @@ class BookingConcurrencyTest {
         startLatch.countDown();
 
         doneLatch.await();
+
+        System.out.println("RESULTS: " + results);
 
         int successCount = 0;
         int failCount = 0;

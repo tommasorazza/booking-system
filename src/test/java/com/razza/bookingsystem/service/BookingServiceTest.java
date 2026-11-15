@@ -58,10 +58,10 @@ class BookingServiceTest {
     @InjectMocks
     private BookingService bookingService;
 
-    private Venue venue;
-    private User user;
-    private User adminUser;
-    private Event futureEvent;
+    private Venue venue, otherVenue;
+    private User user, otherUser, minorUser, admin, performer;
+    private Event futureEvent, secondFutureEvent;
+    private Performance performance;
 
     /**
      * Initializes the shared domain objects used across all tests.
@@ -72,30 +72,102 @@ class BookingServiceTest {
     void initialize() {
         venue = Venue.builder()
                 .id(UUID.randomUUID())
-                .name("cinema")
+                .name("music club")
                 .build();
 
         user = User.builder()
                 .id(UUID.randomUUID())
-                .email("user@cinema.com")
+                .name("user")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00Z"))
+                .email("user@example.com")
+                .password("hashedPassword")
                 .role(Role.GUEST)
                 .venue(venue)
+                .status(Status.CONFIRMED)
                 .build();
 
-        adminUser = User.builder()
+        performer = User.builder()
                 .id(UUID.randomUUID())
-                .email("admin@cinema.com")
+                .name("performer")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00Z"))
+                .email("performer@example.com")
+                .password("hashedPassword")
+                .role(Role.PERFORMER)
+                .venue(venue)
+                .status(Status.CONFIRMED)
+                .build();
+
+        admin = User.builder()
+                .id(UUID.randomUUID())
+                .name("admin")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00Z"))
+                .email("admin@example.com")
+                .password("hashedPassword")
                 .role(Role.ADMIN)
                 .venue(venue)
+                .status(Status.CONFIRMED)
+                .build();
+
+        performance = Performance.builder()
+                .id(UUID.randomUUID())
+                .user(performer)
+                .name("blues")
+                .description("blues session")
+                .duration(120)
+                .performanceType(PerformanceType.LIVE_MUSIC)
+                .build();
+
+        Venue otherVenue = Venue.builder()
+                .id(UUID.randomUUID())
+                .name("other music club")
+                .build();
+
+        otherUser = User.builder()
+                .id(UUID.randomUUID())
+                .name("otherUser")
+                .birthDate(OffsetDateTime.parse("2000-01-01T00:00:00Z"))
+                .email("otherUserser@example.com")
+                .password("hashedPassword")
+                .role(Role.GUEST)
+                .venue(otherVenue)
+                .status(Status.CONFIRMED)
+                .build();
+
+        minorUser = User.builder()
+                .id(UUID.randomUUID())
+                .name("minorUser")
+                .birthDate(OffsetDateTime.parse("2010-01-01T00:00:00Z"))
+                .email("otherUserser@example.com")
+                .password("hashedPassword")
+                .role(Role.GUEST)
+                .venue(venue)
+                .status(Status.CONFIRMED)
                 .build();
 
         futureEvent = Event.builder()
                 .id(UUID.randomUUID())
-                .name("movie")
+                .name("cabaret")
+                .description("a fun cabaret")
+                .location("main room")
                 .date(OffsetDateTime.now().plusDays(7))
                 .bookingPolicy(new BookingPolicy(100,100))
                 .venue(venue)
                 .status(CONFIRMED)
+                .schedule(List.of(new TimeSlot(performer.getEmail(), OffsetDateTime.now().plusDays(7), OffsetDateTime.now().plusDays(7).plusMinutes(120), performance.getId())))
+                .eighteenPlus(false)
+                .build();
+
+        secondFutureEvent = Event.builder()
+                .id(UUID.randomUUID())
+                .name("second cabaret")
+                .description("an other fun cabaret")
+                .location("the second room")
+                .date(OffsetDateTime.now().plusDays(7))
+                .bookingPolicy(new BookingPolicy(100,100))
+                .venue(venue)
+                .status(CONFIRMED)
+                .schedule(List.of(new TimeSlot(performer.getEmail(), OffsetDateTime.now().plusDays(7), OffsetDateTime.now().plusDays(7).plusMinutes(120), performance.getId())))
+                .eighteenPlus(true)
                 .build();
     }
 
@@ -110,15 +182,16 @@ class BookingServiceTest {
          */
         @Transactional
         @Test
-        @DisplayName("createBooking_givenValidRequest_thenReturnBookingDto")
-        void createBooking_givenValidRequest_thenReturnBookingDto() {
+        void createBookingByUser_givenValidRequest_thenReturnBookingDto() {
 
             int quantity = 2;
             BookingDto expectedDto = BookingDto.builder()
                     .eventId(futureEvent.getId())
+                    .eventName("cabaret")
                     .userId(user.getId())
                     .quantity(quantity)
                     .status(CONFIRMED)
+                    .createdAt(OffsetDateTime.now())
                     .build();
 
             when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
@@ -135,7 +208,7 @@ class BookingServiceTest {
                     .thenReturn(expectedDto);
 
             BookingDto result = bookingService.createBooking(
-                    futureEvent.getId(), user, user, venue, quantity, false);
+                    futureEvent.getId(), null, user, venue, quantity, false);
 
             assertThat(result).isNotNull();
             assertThat(result.getStatus()).isEqualTo(CONFIRMED);
@@ -143,13 +216,50 @@ class BookingServiceTest {
             verify(bookingRepository).save(any(Booking.class));
         }
 
+        @Transactional
+        @Test
+        void createBookingByAdmin_givenValidRequest_thenReturnBookingDto() {
+
+            int quantity = 2;
+            BookingDto expectedDto = BookingDto.builder()
+                    .eventId(futureEvent.getId())
+                    .eventName("cabaret")
+                    .userId(user.getId())
+                    .quantity(quantity)
+                    .status(CONFIRMED)
+                    .createdAt(OffsetDateTime.now())
+                    .build();
+
+            when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
+                    .thenReturn(Optional.of(futureEvent));
+            when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CONFIRMED))
+                    .thenReturn(Optional.empty());
+            when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CANCELLED))
+                    .thenReturn(Optional.empty());
+            when(eventRepository.decreaseCapacity(futureEvent.getId(), quantity))
+                    .thenReturn(1);
+            when(bookingRepository.save(any(Booking.class)))
+                    .thenAnswer(inv -> inv.getArgument(0)); // thenAnswer is used instead of thenReturn because the object (Booking) will only exist at runtime, inv (invocationOnMock is instead a snapshot of the saving operation, inv.getArgument(0) is nothing else that the booking itself
+            when(bookingMapper.toDto(any(Booking.class)))
+                    .thenReturn(expectedDto);
+
+            BookingDto result = bookingService.createBooking(
+                    futureEvent.getId(), user, admin, venue, quantity, true);
+
+            assertThat(result).isNotNull();
+            assertThat(result.getStatus()).isEqualTo(CONFIRMED);
+            assertThat(result.getQuantity()).isEqualTo(quantity);
+            assertThat(result.getUserId()).isEqualTo(user.getId());
+            verify(bookingRepository).save(any(Booking.class));
+        }
+
+
         /**
          * When the event does not exist (or belongs to a different venue),
          * the service must throw {@link ResourceNotFoundException}.
          */
         @Transactional
         @Test
-        @DisplayName("createBooking_givenUnknownEvent_thenThrowResourceNotFoundException")
         void createBooking_givenUnknownEvent_thenThrowResourceNotFoundException() {
 
             when(eventRepository.findByIdAndVenue(any(UUID.class), any(Venue.class)))
@@ -164,12 +274,57 @@ class BookingServiceTest {
         }
 
         /**
+         * Booking a past event must throw {@link PastEventException} immediately.
+         */
+        @Transactional
+        @Test
+        void createBooking_givenPastEvent_thenThrowPastEventException() {
+
+            Event pastEvent = Event.builder()
+                    .id(UUID.randomUUID())
+                    .name("Old Concert")
+                    .date(OffsetDateTime.now().minusDays(1))
+                    .bookingPolicy(new BookingPolicy(50,50))
+                    .venue(venue)
+                    .status(CONFIRMED)
+                    .build();
+
+            when(eventRepository.findByIdAndVenue(pastEvent.getId(), venue))
+                    .thenReturn(Optional.of(pastEvent));
+
+            assertThatThrownBy(() ->
+                    bookingService.createBooking(
+                            pastEvent.getId(), user, user, venue, 1, false))
+                    .isInstanceOf(PastEventException.class);
+        }
+
+        /**
          * Attempting to book a quantity of zero must throw {@link QuantityException}
          * before any repository interaction.
          */
         @Transactional
         @Test
-        @DisplayName("createBooking_givenZeroQuantity_thenThrowQuantityException")
+        void createBooking_givenNoBookingPolicy_thenThrowQuantityException() {
+            futureEvent.setBookingPolicy(null);
+
+            when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
+                    .thenReturn(Optional.of(futureEvent));
+
+            assertThatThrownBy(() ->
+                    bookingService.createBooking(
+                            futureEvent.getId(), user, user, venue, 2, false))
+                    .isInstanceOf(QuantityException.class)
+                    .hasMessageContaining("This event does not require any bookings");
+
+            verify(bookingRepository, never()).save(any());
+        }
+
+        /**
+         * Attempting to book a quantity of zero must throw {@link QuantityException}
+         * before any repository interaction.
+         */
+        @Transactional
+        @Test
         void createBooking_givenZeroQuantity_thenThrowQuantityException() {
             when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
                     .thenReturn(Optional.of(futureEvent));
@@ -182,29 +337,34 @@ class BookingServiceTest {
             verify(bookingRepository, never()).save(any());
         }
 
-        /**
-         * When the event capacity is already full, {@code decreaseCapacity} returns 0
-         * and the service must throw {@link NotEnoughSeatsException}.
-         */
         @Transactional
         @Test
-        @DisplayName("createBooking_givenFullCapacity_thenThrowNotEnoughSeatsException")
-        void createBooking_givenFullCapacity_thenThrowNotEnoughSeatsException() {
-
+        void createBookingByAdmin_givenWrongVenue_thenThrowResourceNotFoundException() {
             when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
                     .thenReturn(Optional.of(futureEvent));
-            when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CONFIRMED))
-                    .thenReturn(Optional.empty());
-            when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CANCELLED))
-                    .thenReturn(Optional.empty());
-            when(eventRepository.decreaseCapacity(futureEvent.getId(), 5))
-                    .thenReturn(0);     //unit testing is deliberately narrow and fast, here just testing how the method reacts to decreaseCapacity returning 0
 
             assertThatThrownBy(() ->
                     bookingService.createBooking(
-                            futureEvent.getId(), user, user, venue, 5, false))
-                    .isInstanceOf(NotEnoughSeatsException.class);
+                            futureEvent.getId(), otherUser, admin, venue, 2, true))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(bookingRepository, never()).save(any());
         }
+
+        @Transactional
+        @Test
+        void createBooking_givenInvalidAge_thenThrowInvalidAgeException() {
+            when(eventRepository.findByIdAndVenue(secondFutureEvent.getId(), venue))
+                    .thenReturn(Optional.of(secondFutureEvent));
+
+            assertThatThrownBy(() ->
+                    bookingService.createBooking(
+                            secondFutureEvent.getId(), minorUser, admin, venue, 2, true))
+                    .isInstanceOf(invalidAgeException.class);
+
+            verify(bookingRepository, never()).save(any());
+        }
+
 
         /**
          * A user who already has a CONFIRMED booking for the same event must
@@ -212,7 +372,6 @@ class BookingServiceTest {
          */
         @Transactional
         @Test
-        @DisplayName("createBooking_givenDuplicateBooking_thenThrowBookingAlreadyPresentException")
         void createBooking_givenDuplicateBooking_thenThrowBookingAlreadyPresentException() {
 
             Booking existing = Booking.builder()
@@ -235,29 +394,26 @@ class BookingServiceTest {
         }
 
         /**
-         * Booking a past event must throw {@link PastEventException} immediately.
+         * When the event capacity is already full, {@code decreaseCapacity} returns 0
+         * and the service must throw {@link NotEnoughSeatsException}.
          */
         @Transactional
         @Test
-        @DisplayName("createBooking_givenPastEvent_thenThrowPastEventException")
-        void createBooking_givenPastEvent_thenThrowPastEventException() {
+        void createBooking_givenFullCapacity_thenThrowNotEnoughSeatsException() {
 
-            Event pastEvent = Event.builder()
-                    .id(UUID.randomUUID())
-                    .name("Old Concert")
-                    .date(OffsetDateTime.now().minusDays(1))
-                    .bookingPolicy(new BookingPolicy(50,50))
-                    .venue(venue)
-                    .status(CONFIRMED)
-                    .build();
-
-            when(eventRepository.findByIdAndVenue(pastEvent.getId(), venue))
-                    .thenReturn(Optional.of(pastEvent));
+            when(eventRepository.findByIdAndVenue(futureEvent.getId(), venue))
+                    .thenReturn(Optional.of(futureEvent));
+            when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CONFIRMED))
+                    .thenReturn(Optional.empty());
+            when(bookingRepository.findByUserAndEventAndStatus(user, futureEvent, CANCELLED))
+                    .thenReturn(Optional.empty());
+            when(eventRepository.decreaseCapacity(futureEvent.getId(), 5))
+                    .thenReturn(0);     //unit testing is deliberately narrow and fast, here just testing how the method reacts to decreaseCapacity returning 0
 
             assertThatThrownBy(() ->
                     bookingService.createBooking(
-                            pastEvent.getId(), user, user, venue, 1, false))
-                    .isInstanceOf(PastEventException.class);
+                            futureEvent.getId(), user, user, venue, 5, false))
+                    .isInstanceOf(NotEnoughSeatsException.class);
         }
 
         /**
@@ -267,7 +423,6 @@ class BookingServiceTest {
          */
         @Transactional
         @Test
-        @DisplayName("createBooking_givenPreviouslyCancelledBooking_thenReactivateBooking")
         void createBooking_givenPreviouslyCancelledBooking_thenReactivateBooking() {
 
             Booking cancelled = Booking.builder()
@@ -300,111 +455,17 @@ class BookingServiceTest {
 
 
     @Nested
-    @DisplayName("cancelBooking")
-    class CancelBooking {
-
-        /**
-         * Happy path: a user cancels their own booking. The service should
-         * restore event capacity and call {@code deleteBooking} (soft-delete).
-         */
-        @Transactional
-        @Test
-        @DisplayName("cancelBooking_givenOwnerRequest_thenCancelAndRestoreCapacity")
-        void cancelBooking_givenOwnerRequest_thenCancelAndRestoreCapacity() {
-
-            Booking booking = Booking.builder()
-                    .id(UUID.randomUUID())
-                    .user(user)
-                    .event(futureEvent)
-                    .venue(venue)
-                    .quantity(2)
-                    .status(CONFIRMED)
-                    .build();
-
-            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
-                    .thenReturn(Optional.of(booking));
-
-            bookingService.cancelBooking(booking.getId(), user, venue, false);
-
-            verify(eventRepository).increaseCapacity(futureEvent.getId(), 2);
-            verify(bookingRepository).deleteBooking(booking.getId());
-        }
-
-        /**
-         * A non-admin user attempting to cancel another user's booking must
-         * receive an {@link AccessDeniedException}.
-         */
-        @Transactional
-        @Test
-        @DisplayName("cancelBooking_givenNonOwnerNonAdmin_thenThrowAccessDeniedException")
-        void cancelBooking_givenNonOwnerNonAdmin_thenThrowAccessDeniedException() {
-
-            User otherUser = User.builder()
-                    .id(UUID.randomUUID())
-                    .email("other@acme.com")
-                    .venue(venue)
-                    .build();
-
-            Booking booking = Booking.builder()
-                    .id(UUID.randomUUID())
-                    .user(otherUser)
-                    .event(futureEvent)
-                    .venue(venue)
-                    .quantity(1)
-                    .status(CONFIRMED)
-                    .build();
-
-            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
-                    .thenReturn(Optional.of(booking));
-
-            assertThatThrownBy(() ->
-                    bookingService.cancelBooking(booking.getId(), user, venue, false))
-                    .isInstanceOf(AccessDeniedException.class);
-
-            verify(bookingRepository, never()).deleteBooking(any());
-        }
-
-        /**
-         * An admin may cancel any booking within their venue, regardless of ownership.
-         */
-        @Transactional
-        @Test
-        @DisplayName("cancelBooking_givenAdminRequest_thenCancelSuccessfully")
-        void cancelBooking_givenAdminRequest_thenCancelSuccessfully() {
-            // arrange
-            Booking booking = Booking.builder()
-                    .id(UUID.randomUUID())
-                    .user(user)
-                    .event(futureEvent)
-                    .venue(venue)
-                    .quantity(1)
-                    .status(CONFIRMED)
-                    .build();
-
-            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
-                    .thenReturn(Optional.of(booking));
-
-            // act — adminUser cancels user's booking
-            bookingService.cancelBooking(booking.getId(), adminUser, venue, true);
-
-            // assert
-            verify(bookingRepository).deleteBooking(booking.getId());
-        }
-    }
-
-
-    @Nested
     @DisplayName("modifyQuantity")
     class ModifyQuantity {
 
         /**
-         * Increasing the booking quantity succeeds when the event still has
-         * enough remaining seats.
+         * Happy path: the booking owner increases the quantity of their own
+         * booking, and there is enough capacity. The service should update
+         * the booking and return a mapped DTO.
          */
         @Transactional
         @Test
-        @DisplayName("modifyQuantity_givenValidIncrease_thenUpdateQuantity")
-        void modifyQuantity_givenValidIncrease_thenUpdateQuantity() {
+        void modifyQuantity_givenValidRequestByOwner_thenReturnBookingDto() {
 
             Booking booking = Booking.builder()
                     .id(UUID.randomUUID())
@@ -415,47 +476,113 @@ class BookingServiceTest {
                     .status(CONFIRMED)
                     .build();
 
-            int newQuantity = 5;
-
+            int newQuantity = 4;
             BookingDto expectedDto = BookingDto.builder()
-                    .id(booking.getId())
+                    .eventId(futureEvent.getId())
+                    .userId(user.getId())
                     .quantity(newQuantity)
                     .status(CONFIRMED)
                     .build();
 
             when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
                     .thenReturn(Optional.of(booking));
-            when(eventRepository.decreaseCapacity(futureEvent.getId(), newQuantity - 2))
+            when(eventRepository.decreaseCapacity(futureEvent.getId(), newQuantity - booking.getQuantity()))
                     .thenReturn(1);
-            when(bookingRepository.save(booking)).thenReturn(booking);
-            when(bookingMapper.toDto(booking)).thenReturn(expectedDto);
+            when(bookingRepository.save(booking))
+                    .thenReturn(booking);
+            when(bookingMapper.toDto(booking))
+                    .thenReturn(expectedDto);
 
             BookingDto result = bookingService.modifyQuantity(
                     booking.getId(), user, venue, newQuantity, false);
 
+            assertThat(result).isNotNull();
+            assertThat(result.getQuantity()).isEqualTo(newQuantity);
+            assertThat(booking.getQuantity()).isEqualTo(newQuantity);
+            verify(bookingRepository).save(booking);
+        }
+
+        /**
+         * Happy path: an admin modifies a booking that does not belong to
+         * them, on behalf of another user within the same venue.
+         */
+        @Transactional
+        @Test
+        void modifyQuantity_givenValidRequestByAdmin_thenReturnBookingDto() {
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(futureEvent)
+                    .venue(venue)
+                    .quantity(2)
+                    .status(CONFIRMED)
+                    .build();
+
+            int newQuantity = 3;
+            BookingDto expectedDto = BookingDto.builder()
+                    .eventId(futureEvent.getId())
+                    .userId(user.getId())
+                    .quantity(newQuantity)
+                    .status(CONFIRMED)
+                    .build();
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+            when(eventRepository.decreaseCapacity(futureEvent.getId(), newQuantity - booking.getQuantity()))
+                    .thenReturn(1);
+            when(bookingRepository.save(booking))
+                    .thenReturn(booking);
+            when(bookingMapper.toDto(booking))
+                    .thenReturn(expectedDto);
+
+            BookingDto result = bookingService.modifyQuantity(
+                    booking.getId(), admin, venue, newQuantity, true);
+
+            assertThat(result).isNotNull();
             assertThat(result.getQuantity()).isEqualTo(newQuantity);
             verify(bookingRepository).save(booking);
         }
 
         /**
-         * A non-admin user must not be able to modify another user's booking;
-         * an {@link AccessDeniedException} is expected.
+         * When the booking does not exist (or does not belong to the venue),
+         * the service must throw ResourceNotFoundException.
          */
         @Transactional
         @Test
-        @DisplayName("modifyQuantity_givenNonOwnerNonAdmin_thenThrowAccessDeniedException")
-        void modifyQuantity_givenNonOwnerNonAdmin_thenThrowAccessDeniedException() {
+        void modifyQuantity_givenUnknownBooking_thenThrowResourceNotFoundException() {
 
-            User otherUser = User.builder()
+            when(bookingRepository.findByIdAndVenue(any(UUID.class), any(Venue.class)))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() ->
+                    bookingService.modifyQuantity(
+                            UUID.randomUUID(), user, venue, 2, false))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(bookingRepository, never()).save(any());
+        }
+
+        /**
+         * Modifying a booking for a past event must throw PastEventException.
+         */
+        @Transactional
+        @Test
+        void modifyQuantity_givenPastEvent_thenThrowPastEventException() {
+
+            Event pastEvent = Event.builder()
                     .id(UUID.randomUUID())
-                    .email("other@acme.com")
+                    .name("Old Concert")
+                    .date(OffsetDateTime.now().minusDays(1))
+                    .bookingPolicy(new BookingPolicy(50, 50))
                     .venue(venue)
+                    .status(CONFIRMED)
                     .build();
 
             Booking booking = Booking.builder()
                     .id(UUID.randomUUID())
-                    .user(otherUser)
-                    .event(futureEvent)
+                    .user(user)
+                    .event(pastEvent)
                     .venue(venue)
                     .quantity(1)
                     .status(CONFIRMED)
@@ -466,17 +593,84 @@ class BookingServiceTest {
 
             assertThatThrownBy(() ->
                     bookingService.modifyQuantity(
-                            booking.getId(), user, venue, 3, false))
-                    .isInstanceOf(AccessDeniedException.class);
+                            booking.getId(), user, venue, 2, false))
+                    .isInstanceOf(PastEventException.class);
+
+            verify(bookingRepository, never()).save(any());
         }
 
         /**
-         * Requesting a quantity of zero must throw {@link QuantityException}
-         * before any capacity check occurs.
+         * A non-admin user attempting to modify someone else's booking
+         * must receive an AccessDeniedException.
          */
         @Transactional
         @Test
-        @DisplayName("modifyQuantity_givenZeroQuantity_thenThrowQuantityException")
+        void modifyQuantity_givenNotOwnerAndNotAdmin_thenThrowAccessDeniedException() {
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(futureEvent)
+                    .venue(venue)
+                    .quantity(2)
+                    .status(CONFIRMED)
+                    .build();
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+
+            assertThatThrownBy(() ->
+                    bookingService.modifyQuantity(
+                            booking.getId(), otherUser, venue, 2, false))
+                    .isInstanceOf(AccessDeniedException.class);
+
+            verify(bookingRepository, never()).save(any());
+        }
+
+        /**
+         * When the booking's event belongs to a different venue than the
+         * requesting user's venue, the service must throw
+         * ResourceNotFoundException.
+         */
+        @Transactional
+        @Test
+        void modifyQuantity_givenWrongVenue_thenThrowResourceNotFoundException() {
+
+            Event otherVenueEvent = Event.builder()
+                    .id(UUID.randomUUID())
+                    .name("other venue event")
+                    .date(OffsetDateTime.now().plusDays(7))
+                    .bookingPolicy(new BookingPolicy(50, 50))
+                    .venue(otherUser.getVenue())
+                    .status(CONFIRMED)
+                    .build();
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(otherVenueEvent)
+                    .venue(otherUser.getVenue())
+                    .quantity(1)
+                    .status(CONFIRMED)
+                    .build();
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+
+            assertThatThrownBy(() ->
+                    bookingService.modifyQuantity(
+                            booking.getId(), user, venue, 2, true))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(bookingRepository, never()).save(any());
+        }
+
+        /**
+         * Requesting a quantity below one must throw QuantityException
+         * before any capacity check is performed.
+         */
+        @Transactional
+        @Test
         void modifyQuantity_givenZeroQuantity_thenThrowQuantityException() {
 
             Booking booking = Booking.builder()
@@ -496,7 +690,240 @@ class BookingServiceTest {
                             booking.getId(), user, venue, 0, false))
                     .isInstanceOf(QuantityException.class);
 
-            verify(eventRepository, never()).decreaseCapacity(any(), anyInt());
+            verify(bookingRepository, never()).save(any());
+        }
+
+        /**
+         * When there is not enough remaining capacity to cover the increase
+         * in quantity, decreaseCapacity returns 0 and the service must
+         * throw NotEnoughSeatsException.
+         */
+        @Transactional
+        @Test
+        void modifyQuantity_givenNotEnoughSeats_thenThrowNotEnoughSeatsException() {
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(futureEvent)
+                    .venue(venue)
+                    .quantity(2)
+                    .status(CONFIRMED)
+                    .build();
+
+            int newQuantity = 10;
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+            when(eventRepository.decreaseCapacity(futureEvent.getId(), newQuantity - booking.getQuantity()))
+                    .thenReturn(0);
+
+            assertThatThrownBy(() ->
+                    bookingService.modifyQuantity(
+                            booking.getId(), user, venue, newQuantity, false))
+                    .isInstanceOf(NotEnoughSeatsException.class);
+
+            verify(bookingRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("cancelBooking")
+    class CancelBooking {
+
+        /**
+         * Happy path: the booking owner cancels their own booking for a
+         * future event. The service should restore event capacity and
+         * delete the booking.
+         */
+        @Transactional
+        @Test
+        void cancelBooking_givenValidRequestByOwner_thenDeleteBookingAndRestoreCapacity() {
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(futureEvent)
+                    .venue(venue)
+                    .quantity(2)
+                    .status(CONFIRMED)
+                    .build();
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+
+            bookingService.cancelBooking(booking.getId(), user, venue, false);
+
+            verify(eventRepository).increaseCapacity(futureEvent.getId(), booking.getQuantity());
+            verify(bookingRepository).deleteBooking(booking.getId());
+        }
+
+        /**
+         * Happy path: an admin cancels a booking that does not belong to
+         * them, on behalf of another user within the same venue.
+         */
+        @Transactional
+        @Test
+        void cancelBooking_givenValidRequestByAdmin_thenDeleteBookingAndRestoreCapacity() {
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(futureEvent)
+                    .venue(venue)
+                    .quantity(1)
+                    .status(CONFIRMED)
+                    .build();
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+
+            bookingService.cancelBooking(booking.getId(), admin, venue, true);
+
+            verify(eventRepository).increaseCapacity(futureEvent.getId(), booking.getQuantity());
+            verify(bookingRepository).deleteBooking(booking.getId());
+        }
+
+        /**
+         * When the booking does not exist (or does not belong to the venue),
+         * the service must throw ResourceNotFoundException.
+         */
+        @Transactional
+        @Test
+        void cancelBooking_givenUnknownBooking_thenThrowResourceNotFoundException() {
+
+            when(bookingRepository.findByIdAndVenue(any(UUID.class), any(Venue.class)))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() ->
+                    bookingService.cancelBooking(
+                            UUID.randomUUID(), user, venue, false))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(bookingRepository, never()).deleteBooking(any());
+            verify(eventRepository, never()).increaseCapacity(any(), anyInt());
+        }
+
+        /**
+         * Cancelling a booking that is already canceled must throw
+         * BookingAlreadyCancelledException.
+         */
+        @Transactional
+        @Test
+        void cancelBooking_givenAlreadyCancelledBooking_thenThrowBookingAlreadyCancelledException() {
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(futureEvent)
+                    .venue(venue)
+                    .quantity(1)
+                    .status(CANCELLED)
+                    .build();
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+
+            assertThatThrownBy(() ->
+                    bookingService.cancelBooking(
+                            booking.getId(), user, venue, false))
+                    .isInstanceOf(BookingAlreadyCancelledException.class);
+
+            verify(bookingRepository, never()).deleteBooking(any());
+            verify(eventRepository, never()).increaseCapacity(any(), anyInt());
+        }
+
+        /**
+         * Cancelling a booking for a past event must throw
+         * PastEventException.
+         */
+        @Transactional
+        @Test
+        void cancelBooking_givenPastEvent_thenThrowPastEventException() {
+
+            Event pastEvent = Event.builder()
+                    .id(UUID.randomUUID())
+                    .name("Old Concert")
+                    .date(OffsetDateTime.now().minusDays(1))
+                    .bookingPolicy(new BookingPolicy(50, 50))
+                    .venue(venue)
+                    .status(CONFIRMED)
+                    .build();
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(pastEvent)
+                    .venue(venue)
+                    .quantity(1)
+                    .status(CONFIRMED)
+                    .build();
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+
+            assertThatThrownBy(() ->
+                    bookingService.cancelBooking(
+                            booking.getId(), user, venue, false))
+                    .isInstanceOf(PastEventException.class);
+
+            verify(bookingRepository, never()).deleteBooking(any());
+        }
+
+        /**
+         * A non-admin user attempting to cancel someone else's booking
+         * must receive an AccessDeniedException.
+         */
+        @Transactional
+        @Test
+        void cancelBooking_givenNotOwnerAndNotAdmin_thenThrowAccessDeniedException() {
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(futureEvent)
+                    .venue(venue)
+                    .quantity(1)
+                    .status(CONFIRMED)
+                    .build();
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+
+            assertThatThrownBy(() ->
+                    bookingService.cancelBooking(
+                            booking.getId(), otherUser, venue, false))
+                    .isInstanceOf(AccessDeniedException.class);
+
+            verify(bookingRepository, never()).deleteBooking(any());
+        }
+
+        /**
+         * When the booking belongs to a different venue than the requesting
+         * user's venue, the service must throw ResourceNotFoundException.
+         */
+        @Transactional
+        @Test
+        void cancelBooking_givenWrongVenue_thenThrowResourceNotFoundException() {
+
+            Booking booking = Booking.builder()
+                    .id(UUID.randomUUID())
+                    .user(user)
+                    .event(futureEvent)
+                    .venue(otherUser.getVenue())
+                    .quantity(1)
+                    .status(CONFIRMED)
+                    .build();
+
+            when(bookingRepository.findByIdAndVenue(booking.getId(), venue))
+                    .thenReturn(Optional.of(booking));
+
+            assertThatThrownBy(() ->
+                    bookingService.cancelBooking(
+                            booking.getId(), user, venue, true))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(bookingRepository, never()).deleteBooking(any());
         }
     }
 
@@ -511,7 +938,6 @@ class BookingServiceTest {
          */
         @Transactional
         @Test
-        @DisplayName("getUserBookings_givenRegularUser_thenReturnOwnBookings")
         void getUserBookings_givenRegularUser_thenReturnOwnBookings() {
 
             Booking booking = Booking.builder()
@@ -552,7 +978,6 @@ class BookingServiceTest {
          */
         @Transactional
         @Test
-        @DisplayName("getUserBookings_givenAdminRequest_thenReturnTargetUserBookings")
         void getUserBookings_givenAdminRequest_thenReturnTargetUserBookings() {
 
             Booking booking = Booking.builder()
@@ -579,7 +1004,7 @@ class BookingServiceTest {
 
             List<BookingDto> results = bookingService.getUserBookings(
                     user.getId(),
-                    adminUser.getId(),
+                    admin.getId(),
                     venue,
                     true);
 
@@ -593,7 +1018,6 @@ class BookingServiceTest {
          */
         @Transactional
         @Test
-        @DisplayName("getUserBookings_givenUnknownUser_thenThrowResourceNotFoundException")
         void getUserBookings_givenUnknownUser_thenThrowResourceNotFoundException() {
 
             UUID unknownUserId = UUID.randomUUID();

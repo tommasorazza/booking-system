@@ -51,8 +51,6 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final VenueRepository venueRepository;
-    private final AvailabilityRepository availabilityRepository;
-
     /**
      * Registers a new user within a venue.
      *
@@ -79,13 +77,13 @@ public class AuthService {
             throw new UserAlreadyExistsException(email);
         }
 
-        if(role != Role.GUEST && role != Role.PERFORMER){
+        if (role != Role.GUEST && role != Role.PERFORMER) {
             throw InvalidRoleException.wrongSignUp();
         }
 
         User user;
 
-        if(role == Role.GUEST) {
+        if (role == Role.GUEST) {
             user = User.builder()
                     .name(name)
                     .birthDate(birthDate)
@@ -96,12 +94,12 @@ public class AuthService {
                     .status(Status.CONFIRMED)
                     .build();
         } else {
-            if(availability == null){
+            if (availability == null) {
                 throw new MissingAvailabilityException();
             }
 
             Set<Performance> newPerformances = new HashSet<>();
-            for(PerformanceDto performance : performances){
+            for (PerformanceDto performance : performances) {
                 newPerformances.add(performanceMapper.toEntity(performance));
             }
 
@@ -117,7 +115,7 @@ public class AuthService {
                     .performances(newPerformances)
                     .build();
             user.getAvailability().setUser(user);
-            for(Performance performance : newPerformances){
+            for (Performance performance : newPerformances) {
                 performance.setUser(user);
             }
             User saved = userRepository.save(user);

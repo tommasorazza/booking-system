@@ -1,5 +1,6 @@
 package com.razza.bookingsystem.concurrency.event;
 
+import com.razza.bookingsystem.concurrency.PostgresConcurrencyTestBase;
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.dto.EventRequestDto;
 import com.razza.bookingsystem.exception.EventDecreaseException;
@@ -39,9 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * - Business rule enforced: cannot decrease capacity if bookings exist
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-@SpringBootTest
-@ActiveProfiles("test")
-class EventUpdateConcurrencyTest {
+class EventUpdateConcurrencyTest extends PostgresConcurrencyTestBase {
 
     @Autowired
     private BookingService bookingService;

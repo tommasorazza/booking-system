@@ -1,5 +1,6 @@
 package com.razza.bookingsystem.concurrency.booking;
 
+import com.razza.bookingsystem.concurrency.PostgresConcurrencyTestBase;
 import com.razza.bookingsystem.domain.*;
 import com.razza.bookingsystem.exception.BookingAlreadyPresentException;
 import com.razza.bookingsystem.repository.BookingRepository;
@@ -50,9 +51,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @throws Exception if thread synchronization or execution fails
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-@SpringBootTest
-@ActiveProfiles("test")
-class CreateBookingConcurrencyTest {
+class CreateBookingConcurrencyTest extends PostgresConcurrencyTestBase {
 
     @Autowired
     private BookingService bookingService;

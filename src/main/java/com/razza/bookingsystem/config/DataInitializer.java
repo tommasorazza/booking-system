@@ -8,6 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.annotation.Profile;
 
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -25,7 +26,8 @@ import java.util.*;
  * In production, users would typically sign up via the API, and
  * bookings would be created via application logic.
  */
-@Configuration     //@Configuration because this class is a source of beans (CommandLineRunner)
+@Configuration  //@Configuration because this class is a source of beans (CommandLineRunner)
+@Profile({"dev", "test"})
 @RequiredArgsConstructor
 public class DataInitializer {
 
@@ -293,7 +295,6 @@ public class DataInitializer {
                                         .endTime(OffsetDateTime.parse("2026-07-01T22:00:00+02:00"))
                                         .performanceId(userRepository.findByEmailAndVenue("adrien@example.com", venueA).get().getPerformances().stream().filter(performance -> performance.getName().equals("funk")).findFirst().get().getId())
                                         .build()
-
                         ))
                         .eighteenPlus(false)
                         .build();

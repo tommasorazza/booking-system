@@ -176,6 +176,9 @@ public class EventService {
                 event.getBookingPolicy().setTotalCapacity(dto.getTotalCapacity());
                 event.getBookingPolicy().setAvailableCapacity(dto.getTotalCapacity());
             } else {
+                if(dto.getTotalCapacity() > 10000){
+                    throw new BadCapacityException();
+                }
                 int bookedSeats = event.getBookingPolicy().getTotalCapacity() - event.getBookingPolicy().getAvailableCapacity();
                 event.getBookingPolicy().setTotalCapacity(dto.getTotalCapacity());
                 event.getBookingPolicy().setAvailableCapacity(dto.getTotalCapacity() - bookedSeats);
@@ -244,9 +247,9 @@ public class EventService {
             throw new PastEventException(event.getDate());
         }
         Collection<Booking> bookings = bookingRepository.findByEventId(id);
-        for (Booking b : bookings) {
+        /*for (Booking b : bookings) {
             emailService.sendEventDeleteEmail(b.getUser().getEmail(), event.getLocation(), event.getDate());
-        }
+        } */
         for(String email : event.getSchedule().stream().map(TimeSlot::getUserEmail).toList()) {
            emailService.sendEventDeleteEmail(email, event.getLocation(), event.getDate());
         }

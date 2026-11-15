@@ -1,17 +1,12 @@
 package com.razza.bookingsystem.controller;
 
-import com.razza.bookingsystem.domain.Performance;
 import com.razza.bookingsystem.dto.LoginRequest;
 import com.razza.bookingsystem.dto.SignupRequest;
 import com.razza.bookingsystem.dto.UserDto;
-import com.razza.bookingsystem.security.CustomUserDetails;
 import com.razza.bookingsystem.service.AuthService;
-import org.springframework.security.core.Authentication;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
 
 /**
  * Controller for authentication-related operations such as signup and login.
@@ -31,7 +26,7 @@ public class AuthController {
      * @return the created user as a UserDto
      */
     @PostMapping("/signup")
-    public UserDto signup(@RequestBody SignupRequest signupRequest) {
+    public UserDto signup(@Valid @RequestBody SignupRequest signupRequest) {
         return authService.signup(
                 signupRequest.getName(),
                 signupRequest.getBirthDate(),
@@ -51,7 +46,7 @@ public class AuthController {
      * @return a JWT token as a String
      */
     @PostMapping("/login")
-    public String login(@RequestBody LoginRequest loginRequest) {
+    public String login(@Valid @RequestBody LoginRequest loginRequest) {
         return authService.login(
                 loginRequest.getEmail(),
                 loginRequest.getPassword(),
