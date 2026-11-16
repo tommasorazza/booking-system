@@ -27,17 +27,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Concurrency test for pessimistic locking on Event update.
  *
  * Scenario:
- * - An event has initial capacity of 10
- * - 5 users try to book 1 seat each
- * - At the same time, an admin tries to reduce total capacity to 5
+ * An event has an initial capacity of 10.
+ * 5 users try to book 1 seat each.
+ * At the same time, an admin tries to reduce the total capacity to 5.
  *
- * Expected behavior:
- * - If bookings happen first → admin MUST fail (EventDecreaseException)
- * - If admin happens first → bookings are limited by new capacity
+ * Expected outcome:
+ * If the bookings happen first, the admin update must fail with an EventDecreaseException.
+ * If the admin update happens first, the bookings are limited by the new capacity.
  *
- * Guarantees:
- * - No inconsistent state
- * - Business rule enforced: cannot decrease capacity if bookings exist
+ * This guarantees that no inconsistent state is reached and that the business rule is enforced:
+ * capacity cannot be decreased if bookings exist.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class EventUpdateConcurrencyTest extends PostgresConcurrencyTestBase {

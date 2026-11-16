@@ -34,11 +34,24 @@ import static org.mockito.Mockito.when;
 /**
  * Unit tests for JwtAuthenticationFilter.
  *
- * No Spring context is started — the filter is instantiated directly with
- * mocked JwtService and CustomUserDetailsService, and called manually with
- * fake request/response objects.
- * The SecurityContext is cleared before and after each test,
- * so authentication state never leaks between tests.
+ * Setup:
+ * No Spring context is started. The filter is instantiated directly with mocked
+ * JwtService and CustomUserDetailsService, and called manually with mock request
+ * and response objects.
+ * The SecurityContext is cleared before and after each test, so authentication
+ * state never leaks between tests.
+ *
+ * Scenarios:
+ * A request without an Authorization header, a header that is not of the Bearer kind,
+ * a valid token, an invalid token, a token without a subject, and a SecurityContext
+ * that already contains an authentication.
+ *
+ * Expected outcome:
+ * Requests without a usable Bearer token continue the chain with no authentication set.
+ * A valid token sets the authentication, with the loaded user as principal and the
+ * roles extracted from the token as authorities.
+ * An invalid token or a token without a subject sets no authentication, but the chain is still continued.
+ * An existing authentication is left unchanged and the user is not loaded again.
  */
 class JwtAuthenticationFilterTest {
 

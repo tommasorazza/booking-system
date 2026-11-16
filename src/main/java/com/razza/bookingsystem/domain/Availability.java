@@ -6,6 +6,12 @@ import lombok.Builder;
 
 import java.util.UUID;
 
+/**
+ * Entity representing the weekly availability of a performer.
+ *
+ * Each day of the week is a Boolean flag telling whether the performer
+ * is available on that day. It is linked one to one with its user.
+ */
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
@@ -32,6 +38,18 @@ public class Availability {
     private Boolean saturday;
     private Boolean sunday;
 
+    /**
+     * Creates an availability with a flag for each day of the week.
+     * The user is not set here, it has to be linked afterwards.
+     *
+     * @param monday true if available on Monday
+     * @param tuesday true if available on Tuesday
+     * @param wednesday true if available on Wednesday
+     * @param thursday true if available on Thursday
+     * @param friday true if available on Friday
+     * @param saturday true if available on Saturday
+     * @param sunday true if available on Sunday
+     */
     public Availability(Boolean monday, Boolean tuesday, Boolean wednesday, Boolean thursday, Boolean friday, Boolean saturday, Boolean sunday){
         this.monday = monday;
         this.tuesday = tuesday;
@@ -42,6 +60,15 @@ public class Availability {
         this.sunday = sunday;
     }
 
+    /**
+     * Returns whether the user is available on a given day.
+     *
+     * The day name has to be lowercase, for example "monday".
+     * Any unknown day name returns false.
+     *
+     * @param day the lowercase name of the day
+     * @return true if available on that day, false otherwise
+     */
     public Boolean getDay(String day){
         return switch (day) {
             case "monday" -> this.user.getAvailability().getMonday();

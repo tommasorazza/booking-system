@@ -41,14 +41,26 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for {@link AuthService}.
  *
- * Uses Mockito to isolate the service from its dependencies:
- * {@link UserRepository}, {@link UserMapper}, {@link PasswordEncoder},
- * {@link JwtService}, {@link AuthenticationManager},
- * {@link CustomUserDetailsService}, and {@link VenueRepository}.
+ * Setup:
+ * No Spring context is started. Mockito isolates the service from its dependencies:
+ * {@link UserRepository}, {@link VenueRepository}, {@link UserMapper},
+ * {@link PerformanceMapper}, {@link AvailabilityMapper}, {@link PasswordEncoder},
+ * {@link JwtService} and {@link AuthenticationManager}.
+ * A venue, a guest user and a performer with their DTOs are created before each test.
  *
- * Test groups:
- * signup - registration, validation, venue scoping, and password encoding
- * login  - authentication, token generation, and credential handling
+ * Scenarios:
+ * Signup is called for a guest, for a performer, with an email already registered in the venue,
+ * with a venue that does not exist, and with the same email in two different venues.
+ * Login is called with valid credentials and for a user whose status is CANCELLED.
+ *
+ * Expected outcome:
+ * A valid signup returns the user DTO, encodes the password and assigns the requested role
+ * and the resolved venue before the user is persisted.
+ * A performer signup also builds the availability and the performances.
+ * A duplicate email in the same venue or an unknown venue throws an exception and nothing is saved.
+ * Email uniqueness is scoped per venue, not globally.
+ * A valid login returns the JWT produced by the JwtService.
+ * A login for a cancelled user throws BadCredentialsException and no token is generated.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -61,7 +73,7 @@ class AuthServiceTest {
     @Mock private JwtService jwtService;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private VenueRepository venueRepository;
-    
+
 
     @InjectMocks
     private AuthService authService;
@@ -76,8 +88,9 @@ class AuthServiceTest {
 
     /**
      * Sets up shared fixtures used across multiple test cases.
-     * Creates a venue, a user belonging to that venue, and the
-     * corresponding UserDto.
+     * Creates a venue, a guest user belonging to that venue and the corresponding UserDto.
+     * Also creates a performance, a performer with the corresponding UserDto,
+     * and an availability.
      */
     @BeforeEach
     void setUp() {
@@ -120,11 +133,11 @@ class AuthServiceTest {
                 .build();
 
         performanceDto = PerformanceDto.builder()
-                    .name("blues")
-                    .description("blues session")
-                    .duration(120)
-                    .performanceType(PerformanceType.LIVE_MUSIC)
-                    .build();
+                .name("blues")
+                .description("blues session")
+                .duration(120)
+                .performanceType(PerformanceType.LIVE_MUSIC)
+                .build();
 
         performer = User.builder()
                 .id(UUID.randomUUID())
@@ -165,9 +178,9 @@ class AuthServiceTest {
 
 
     /**
-     * Verifies that a valid signup request by a guest returns a non-null DTO with the
-     * correct email and role.
-     * Also verifies that the plain-text password is encoded, the assigned role is GUEST,
+     * Verifies that a valid signup request by a guest returns a DTO that is not null,
+     * with the correct email and role.
+     * Also verifies that the plain text password is encoded, the assigned role is GUEST,
      * the assigned venue is the resolved one, all before the user is persisted.
      * Uses an ArgumentCaptor to inspect the User object actually passed to the repository save call.
      */
@@ -194,10 +207,11 @@ class AuthServiceTest {
     }
 
     /**
-     * Verifies that a valid signup request by a performer returns a non-null DTO with the
-     * correct email and role.
-     * Also verifies that the plain-text password is encoded, the assigned role is PERFORMER,
-     * the assigned venue is the resolved one, all before the user is persisted.
+     * Verifies that a valid signup request by a performer returns a DTO that is not null,
+     * with the correct email and role.
+     * Also verifies that the plain text password is encoded, the assigned role is PERFORMER,
+     * the availability matches the requested days and the performances are attached to the user,
+     * all before the user is persisted.
      * Uses an ArgumentCaptor to inspect the User object actually passed to the repository save call.
      */
     @Transactional
@@ -213,7 +227,7 @@ class AuthServiceTest {
 
         UserDto result = authService.signup("user", OffsetDateTime.parse("2000-01-01T12:00:00+02:00"),
                 "performer@example.com", "plainPassword", Role.PERFORMER, "myVenue","monday, tuesday", Set.of(performanceDto)
-                );
+        );
 
         assertThat(result).isNotNull();
         assertThat(result.getEmail()).isEqualTo("performer@example.com");
@@ -230,8 +244,8 @@ class AuthServiceTest {
     }
 
     /**
-     * Verifies that a {@link UserAlreadyExistsException} is thrown — and no
-     * save is attempted — when the email address is already registered within
+     * Verifies that a {@link UserAlreadyExistsException} is thrown, and no
+     * save is attempted, when the email address is already registered within
      * the same venue. The exception message must contain the duplicate email.
      */
     @Transactional
@@ -249,8 +263,8 @@ class AuthServiceTest {
     }
 
     /**
-     * Verifies that a {@link ResourceNotFoundException} is thrown — and no
-     * save is attempted — when the supplied venue name does not match any
+     * Verifies that a {@link ResourceNotFoundException} is thrown, and no
+     * save is attempted, when the supplied venue name does not match any
      * existing venue. The exception message must reference "venue".
      */
     @Transactional
@@ -331,6 +345,11 @@ class AuthServiceTest {
         assertThat(captor.getValue().getCredentials()).isEqualTo("plainPassword");
     }
 
+    /**
+     * Verifies that a user whose status is CANCELLED cannot log in.
+     * A {@link BadCredentialsException} with the message "invalid credentials" is thrown,
+     * and no JWT is generated.
+     */
     @Transactional
     @Test
     void login_fails_cancelled_user() {
@@ -338,8 +357,8 @@ class AuthServiceTest {
         when(venueRepository.findByName("myVenue")).thenReturn(Optional.of(venue));
         when(userRepository.findByEmailAndVenue("user@example.com",venue)).thenReturn(Optional.of(user));
         assertThatThrownBy(() -> authService.login("user@example.com","wrongPassword", venue.getName()))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("user");
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessageContaining("invalid credentials");
         verify(jwtService, never()).generateToken(any());
     }
 }

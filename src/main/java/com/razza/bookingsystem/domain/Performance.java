@@ -26,20 +26,21 @@ public class Performance {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    /** Performer the performance belongs to. */
     @JoinColumn(name = "user_id")
     @ManyToOne(fetch = FetchType.EAGER)
     private User user;
 
-    /** name of the performance */
+    /** Name of the performance. */
     private String name;
 
-    /** description of the performance */
+    /** Description of the performance. */
     private String description;
 
-    /** duration in minutes of the performance */
+    /** Duration in minutes of the performance. */
     private int duration;
 
-    /** type of performance */
+    /** Type of performance. */
     @Enumerated(EnumType.STRING)
     private PerformanceType performanceType;
 }

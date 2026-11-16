@@ -15,7 +15,7 @@ public interface PerformanceMapper {
     /**
      * Converts a {@link Performance} entity to a {@link PerformanceDto}.
      *
-     * @param Performance the Performance entity
+     * @param performance the Performance entity
      * @return the corresponding PerformanceDto
      */
     PerformanceDto toDto(Performance performance);

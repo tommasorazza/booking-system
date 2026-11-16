@@ -11,19 +11,19 @@ import com.razza.bookingsystem.dto.BookingDto;
  * Implemented automatically by MapStruct.
  */
 @Mapper(componentModel = "spring")
-public interface BookingMapper {    
+public interface BookingMapper {
 
     /**
      * Converts a {@link Booking} entity to a {@link BookingDto}.
-     * Maps nested {@code event.id} and {@code event.name}
-     * to {@code eventId} and {@code eventName} and {@Code user.id} to userId.
+     * Maps the nested {@code event.id} and {@code event.name}
+     * to {@code eventId} and {@code eventName}, and {@code user.id} to {@code userId}.
      *
      * @param booking the booking entity
      * @return the corresponding BookingDto
      */
     @Mapping(source = "event.id", target = "eventId")       // Booking has event as a field, in the dto we just keep id and name, in two separate fields
     @Mapping(source = "event.name", target = "eventName")
-    @Mapping(source = "user.id", target = "userId")         // here also from whole User field to just the id of the user 
+    @Mapping(source = "user.id", target = "userId")         // here also from whole User field to just the id of the user
     BookingDto toDto(Booking booking);
 
     /**

@@ -13,15 +13,15 @@ import com.razza.bookingsystem.dto.AvailabilityDto;
 public interface AvailabilityMapper {
 
     /**
-     * Converts a {@link Availability} entity to a {@link AvailabilityDto}.
+     * Converts an {@link Availability} entity to an {@link AvailabilityDto}.
      *
-     * @param Availability the Availability entity
+     * @param availability the Availability entity
      * @return the corresponding AvailabilityDto
      */
     AvailabilityDto toDto(Availability availability);
 
     /**
-     * Converts a {@link AvailabilityDto} to a {@link Availability} entity.
+     * Converts an {@link AvailabilityDto} to an {@link Availability} entity.
      *
      * @param dto the Availability DTO
      * @return the corresponding Availability entity

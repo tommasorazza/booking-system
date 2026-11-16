@@ -23,6 +23,28 @@ import java.util.UUID;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * Integration test for the user management endpoints, exercising promotion to admin
+ * and deletion through MockMvc against the full Spring context with the test profile.
+ *
+ * Setup:
+ * Creates two venues, VenueA and VenueB.
+ * Creates a guest user and an admin in VenueA, and a guest user in VenueB.
+ *
+ * Scenarios:
+ * Each endpoint is called without authentication, as a regular user, as an admin
+ * of the same venue, and as an admin targeting a user of a different venue.
+ * Requests for a user that does not exist and deletion of a user with an active booking are also covered.
+ *
+ * Expected outcome:
+ * Requests without a token return 401.
+ * Both endpoints are restricted to admins, so a regular user gets 403.
+ * An admin of the same venue can promote a user, which returns 200 with the ADMIN role,
+ * and can delete a user who has no bookings, which returns 200.
+ * Deleting a user with an active booking returns 409.
+ * Any access to a user of another venue, or to a missing user, returns 404, so that the
+ * existence of users in other venues is not revealed.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -61,6 +83,10 @@ class UserControllerIntegrationTest {
                 .role(Role.GUEST).venue(venueB).build());
     }
 
+    /**
+     * Builds the Authorization header value for the given user, consisting of the
+     * Bearer prefix followed by a JWT generated from the user's details and role.
+     */
     private String tokenFor(User user) {
         CustomUserDetails details = new CustomUserDetails(
                 user.getId(), user.getName(), user.getBirthDate(), user.getEmail(), user.getPassword(),
@@ -69,7 +95,7 @@ class UserControllerIntegrationTest {
         return "Bearer " + jwtService.generateToken(details);
     }
 
-    // PUT /users/{userId}  — promote to admin (ADMIN only)
+    // PUT /users/{userId}  promote to admin (ADMIN only)
 
     @Transactional
     @Test

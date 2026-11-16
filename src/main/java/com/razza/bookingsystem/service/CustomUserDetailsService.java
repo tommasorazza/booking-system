@@ -17,14 +17,14 @@ import java.util.List;
 /**
  * Custom implementation of Spring Security's UserDetailsService.
  *
- * This service is responsible for loading user-specific data during authentication.
+ * This service is responsible for loading user data during authentication.
  * It retrieves a user from the database based on their email and venue,
  * and converts it into a CustomUserDetails object used by Spring Security.
  *
  * Responsibilities:
- * - Verify that the venue exists
- * - Verify that the user exists within the venue
- * - Map the user's role to a Spring Security authority
+ *  Verify that the venue exists
+ *  Verify that the user exists within the venue
+ *  Map the user's role to a Spring Security authority
  */
 @Service
 @RequiredArgsConstructor
@@ -37,13 +37,13 @@ public class CustomUserDetailsService implements UserDetailsService {
      * Loads a user by username (email|venueName) and maps it to CustomUserDetails.
      *
      * Behavior:
-     * - Splits the username into email and venue name
-     * - Retrieves the venue from the database
-     * - Retrieves the user within that venue
-     * - Converts the user's role into a Spring Security authority
+     *  Splits the username into email and venue name
+     *  Retrieves the venue from the database
+     *  Retrieves the user within that venue
+     *  Converts the user's role into a Spring Security authority
      *
      * @param username the login identifier in the format "email|venueName"
-     * @return UserDetails representation of the user for Spring Security
+     * @return CustomUserDetails representation of the user for Spring Security
      * @throws UsernameNotFoundException if the venue or user cannot be found
      */
     @Override

@@ -11,7 +11,7 @@ import java.util.UUID;
 
 /**
  * Represents a user in the booking system.
- * Users belong to a venue and can have two roles (ADMIN, GUEST).
+ * Users belong to a venue and can have one of three roles (ADMIN, GUEST, PERFORMER).
  */
 @Entity
 @Getter
@@ -31,11 +31,13 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    /** Name of the user. */
     private String name;
 
+    /** Birth date of the user, used for age restricted events. */
     private OffsetDateTime birthDate;
 
-    /** Email address of the user. Must be unique across the system. */
+    /** Email address of the user. Must be unique within the venue. */
     private String email;
 
     /** Hashed password of the user. */
@@ -50,9 +52,11 @@ public class User {
     @JoinColumn(name = "venue_id")
     private Venue venue;
 
+    /** Status of the user (e.g., CONFIRMED). */
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    /** For performers, the performances they offer. Null for other roles. */
     @Nullable
     @OneToMany(mappedBy = "user", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private Set<Performance> performances;

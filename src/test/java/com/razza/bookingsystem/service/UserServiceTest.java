@@ -33,8 +33,9 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for {@link UserService}.
  *
- * Covers the makeAdmin and deleteUser operations, verifying correct behavior
- * for happy paths, venue-scoping enforcement, and expected exception cases.
+ * Covers makeAdmin, deleteUser, getAvailablePerformersByDate, getPerformer and
+ * modifyAvailability, verifying correct behavior for happy paths, venue scoping
+ * enforcement, and expected exception cases.
  */
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -52,8 +53,9 @@ class UserServiceTest {
     private UserDto performerDto, secondPerformerDto;
 
     /**
-     * Sets up a default venue and user before each test.
-     * The user belongs to the venue and starts with the GUEST role.
+     * Sets up a default venue, a guest and two performers with their dtos before
+     * each test. The guest starts with the GUEST role, while the performers have
+     * the PERFORMER role and different weekly availability.
      */
     @BeforeEach
     void setUp() {
@@ -163,8 +165,8 @@ class UserServiceTest {
         }
 
         /**
-         * Given a valid perfomer in the venue, makeAdmin should throw a
-         * ResourceNotFoundException given that performers can't be made admins
+         * Given a valid performer in the venue, makeAdmin should throw a
+         * ResourceNotFoundException given that performers can't be made admins.
          */
         @Transactional
         @Test
@@ -304,6 +306,11 @@ class UserServiceTest {
     @DisplayName("getAvailablePerformersByDate")
     class GetAvailablePerformersByDate {
 
+        /**
+         * Given a date falling on a day when the performer is available,
+         * getAvailablePerformersByDate should return a list with the UserDto of
+         * that performer, belonging to the requested venue.
+         */
         @Transactional
         @Test
         void getAvailablePerformersByDate_success_returnsPerformerDto() {
@@ -320,6 +327,10 @@ class UserServiceTest {
             assertEquals(result.getFirst().getVenue().getId(), venue.getId());
         }
 
+        /**
+         * When the date is null, getAvailablePerformersByDate should skip the
+         * availability filter and return all the performers of the venue.
+         */
         @Transactional
         @Test
         void getAvailablePerformersByDate_success_returnsAllPerformersIfDateNull() {
@@ -341,6 +352,10 @@ class UserServiceTest {
     @DisplayName("getPerformer")
     class GetPerformer {
 
+        /**
+         * Given a valid performer in the venue, getPerformer should return a
+         * UserDto with the ID and the PERFORMER role of that performer.
+         */
         @Transactional
         @Test
         void getPerformer_success_returnsPerformer() {
@@ -355,6 +370,10 @@ class UserServiceTest {
             assertEquals(Role.PERFORMER, result.getRole());
         }
 
+        /**
+         * getPerformer should throw ResourceNotFoundException when no user with the
+         * given ID and role exists within the venue.
+         */
         @Transactional
         @Test
         void getPerformer_throwsResourceNotFoundException_whenUserNotFoundInVenue() {
@@ -371,6 +390,10 @@ class UserServiceTest {
     @DisplayName("modifyAvailability")
     class ModifyAvailability {
 
+        /**
+         * Given a valid performer in the venue, modifyAvailability should update
+         * the availability of the performer so that it reflects the requested day.
+         */
         @Transactional
         @Test
         void modifyAvailability_success_modifiesPerformerAvailability() {
@@ -387,6 +410,10 @@ class UserServiceTest {
             assertEquals(false, performer.getAvailability().getSaturday());
         }
 
+        /**
+         * modifyAvailability should throw ResourceNotFoundException when no user
+         * with the given email exists within the venue, enforcing venue isolation.
+         */
         @Transactional
         @Test
         void modifyAvailability_throwsResourceNotFoundException_whenUserNotFoundInVenue() {
@@ -404,6 +431,10 @@ class UserServiceTest {
 
         }
 
+        /**
+         * modifyAvailability should throw InvalidRoleException when the user exists
+         * but is not a performer, since only performers have an availability.
+         */
         @Transactional
         @Test
         void modifyAvailability_throwsInvalidRoleException_whenUserNotAPerformer() {

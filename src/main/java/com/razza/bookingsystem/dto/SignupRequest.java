@@ -21,28 +21,36 @@ import java.util.Set;
 @Builder
 public class SignupRequest {
 
+    /** Name of the user. */
     @NotBlank
     private String name;
 
+    /** Birth date of the user. */
     @NotNull
     private OffsetDateTime birthDate;
 
+    /** Email address of the user. */
     @Email
     @NotBlank
     private String email;
 
+    /** Password of the user, in plain text as sent by the client. */
     @NotBlank
     private String password;
 
+    /** Role of the user (ADMIN, GUEST or PERFORMER). */
     @NotNull
     private Role role;
 
+    /** Name of the venue the user signs up to. */
     @NotBlank
     private String venueName;
 
+    /** For performers, the weekly availability. Null for other roles. */
     @Nullable
     private String availability;
 
+    /** For performers, the performances they offer. Null for other roles. */
     @Valid
     @Nullable
     private Set<PerformanceDto> performances;

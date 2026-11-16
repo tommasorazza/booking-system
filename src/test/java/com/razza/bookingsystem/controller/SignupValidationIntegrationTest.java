@@ -24,10 +24,24 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Integration tests for the validation of the POST /auth/signup request body.
+ * Integration test for the validation of the POST /auth/signup request body,
+ * exercised through MockMvc against the full Spring context with the test profile.
  *
+ * Setup:
+ * Creates a venue named VenueA, which the valid request refers to.
+ *
+ * Scenarios:
  * Every test starts from a fully valid request and changes only the field under test,
  * so a 400 can only be caused by that field.
+ * The covered cases are missing or blank values, a malformed email, a role that is not
+ * part of the Role enum, a role that cannot be chosen at signup, and a performer
+ * who does not provide availability.
+ *
+ * Expected outcome:
+ * A fully valid request returns 200 with the created user data.
+ * Every invalid request returns 400.
+ * A role outside the enum returns an error message naming the invalid value and the enum.
+ * A request rejected by the validation does not create the user.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -48,8 +62,8 @@ class SignupValidationIntegrationTest {
     }
 
     /**
-     * Returns a builder already filled with valid values for every field,
-     * each test overrides only the field it wants to break.
+     * Returns a builder already filled with valid values for every field.
+     * Each test overrides only the field it wants to break.
      */
     private SignupRequest.SignupRequestBuilder validRequest() {
         return SignupRequest.builder()
@@ -158,8 +172,8 @@ class SignupValidationIntegrationTest {
     }
 
     /**
-     * A request rejected by the validation must not create the user,
-     * and the response body must contain the status 400.
+     * A request rejected by the validation must not create the user.
+     * The response body must also contain the status 400.
      */
     @Transactional
     @Test

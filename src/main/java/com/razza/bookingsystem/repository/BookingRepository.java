@@ -19,7 +19,7 @@ import java.util.UUID;
 public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     /**
-     * Finds a booking for a specific user, event, and status.
+     * Finds the booking of a specific user for a specific event, with a given status.
      *
      * @param user the User object
      * @param event the Event object
@@ -30,6 +30,8 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     /**
      * Finds a booking by its ID within a specific venue.
+     * The booking is locked for writing until the transaction ends, so concurrent
+     * updates on it have to wait.
      *
      * @param bookingId the UUID of the booking
      * @param venue the venue to which the booking belongs
@@ -79,7 +81,8 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     Collection<Booking> findByEventId(UUID id);
 
     /**
-     * Marks a booking as CANCELLED if it is not already canceled.
+     * Cancels a booking by setting its status to CANCELLED, if it is not already canceled.
+     * The row is not deleted, only its status changes.
      *
      * @param id the UUID of the booking to cancel
      */

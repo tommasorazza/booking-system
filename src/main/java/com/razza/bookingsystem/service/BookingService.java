@@ -27,10 +27,10 @@ import static com.razza.bookingsystem.domain.Status.CONFIRMED;
  * Service responsible for managing bookings.
  *
  * Handles:
- * - booking creation
- * - booking modification
- * - booking cancellation
- * - retrieving bookings
+ *  Booking creation
+ *  Booking modification
+ *  Booking cancellation
+ *  Retrieving bookings
  *
  * Enforces business rules such as seat availability,
  * venue isolation, and access control.
@@ -47,13 +47,15 @@ public class BookingService {
      * Creates a new booking for a given event.
      *
      * Behavior:
-     * - validates that the event exists
-     * - enforces venue isolation
-     * - checks seat availability
-     * - allows admins to book on behalf of another user within the same venue
-     * - prevents duplicate bookings for the same event and user
-     * - decreases available event capacity
-     * - persists the booking
+     *  Validates that the event exists within the venue
+     *  Checks that the event is not in the past
+     *  Checks that the event requires bookings and that the quantity is valid
+     *  Allows admins to book on behalf of another user within the same venue
+     *  Checks the age restriction of the event
+     *  Prevents duplicate bookings for the same event and user
+     *  Decreases the available event capacity
+     *  Reactivates a previously cancelled booking, or creates a new one
+     *  Persists the booking
      *
      * @param eventId identifier of the event
      * @param user target user for the booking (used when admin books on behalf of someone)
@@ -63,6 +65,9 @@ public class BookingService {
      * @param isAdmin whether the current user has admin privileges
      * @return the created booking as a {@link BookingDto}
      * @throws ResourceNotFoundException if the event or user does not exist or does not belong to the venue
+     * @throws PastEventException if the event is already in the past
+     * @throws QuantityException if the event does not require bookings or the quantity is less than 1
+     * @throws invalidAgeException if the event is 18 plus and the user is younger
      * @throws NotEnoughSeatsException if there is insufficient capacity
      * @throws BookingAlreadyPresentException if a booking already exists for the same user and event
      */
@@ -134,12 +139,13 @@ public class BookingService {
      * Modifies the quantity of an existing booking.
      *
      * Behavior:
-     * - validates that the booking exists
-     * - enforces ownership or admin access
-     * - enforces venue isolation
-     * - checks if additional seats are available when increasing quantity
-     * - updates event capacity accordingly
-     * - persists the updated booking
+     *  Validates that the booking exists within the venue
+     *  Checks that the event is not in the past
+     *  Enforces ownership or admin access
+     *  Enforces venue isolation
+     *  Checks that the new quantity is valid
+     *  Updates the event capacity, failing if additional seats are not available
+     *  Persists the updated booking
      *
      * @param bookingId identifier of the booking
      * @param user authenticated user performing the request
@@ -148,7 +154,9 @@ public class BookingService {
      * @param isAdmin whether the user has admin privileges
      * @return the updated booking as a {@link BookingDto}
      * @throws ResourceNotFoundException if the booking does not exist or does not belong to the venue
+     * @throws PastEventException if the event is already in the past
      * @throws AccessDeniedException if the user is not allowed to modify the booking
+     * @throws QuantityException if the new quantity is less than 1
      * @throws NotEnoughSeatsException if there is insufficient capacity for the requested increase
      */
     @Transactional
@@ -191,20 +199,22 @@ public class BookingService {
      * Cancels an existing booking.
      *
      * Behavior:
-     * - validates that the booking exists within the venue
-     * - enforces ownership or admin access
-     * - prevents duplicate cancellation
-     * - restores event capacity
-     * - marks the booking as canceled
+     *  Validates that the booking exists within the venue
+     *  Prevents duplicate cancellation
+     *  Checks that the event is not in the past
+     *  Enforces ownership or admin access
+     *  Restores event capacity
+     *  Marks the booking as canceled
      *
      * @param bookingId identifier of the booking
      * @param currentUser authenticated user performing the request
      * @param venue venue of the requesting user
      * @param isAdmin whether the user has admin privileges
      * @throws ResourceNotFoundException if the booking does not exist within the venue
-     * @throws AccessDeniedException if the user is not allowed to cancel the booking
      * @throws BookingAlreadyCancelledException if the booking is already canceled
-     */ 
+     * @throws PastEventException if the event is already in the past
+     * @throws AccessDeniedException if the user is not allowed to cancel the booking
+     */
     @Transactional
     public void cancelBooking(UUID bookingId, User currentUser, Venue venue, boolean isAdmin) {
 
@@ -237,17 +247,17 @@ public class BookingService {
      * Retrieves all bookings for a specific user within a venue.
      *
      * Behavior:
-     * - non-admin users can only access their own bookings
-     * - admin users can access bookings of any user within the venue
-     * - validates that bookings exist for the user within the venue
-     * - maps results to DTOs
+     *  Regular users can only access their own bookings
+     *  Admin users can access bookings of any user within the venue
+     *  Validates that the user exists within the venue
+     *  Maps results to DTOs
      *
      * @param userId identifier of the target user
      * @param currentUserId identifier of the requesting user
      * @param venue venue of the requesting user
      * @param isAdmin whether the user has admin privileges
      * @return list of bookings as {@link BookingDto}
-     * @throws ResourceNotFoundException if no bookings are found for the user within the venue
+     * @throws ResourceNotFoundException if the user does not exist within the venue
      */
     public List<BookingDto> getUserBookings(UUID userId, UUID currentUserId, Venue venue, boolean isAdmin) {
 

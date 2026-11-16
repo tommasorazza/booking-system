@@ -21,6 +21,17 @@ import java.util.stream.Stream;
 
 import static com.razza.bookingsystem.domain.Role.PERFORMER;
 
+/**
+ * Service responsible for managing performances.
+ *
+ * Handles:
+ *  Retrieving the scheduled performances of a performer
+ *  Adding performances
+ *  Deactivating performances
+ *  Modifying performances
+ *
+ * Enforces venue isolation, so users can only work with performances of their own venue.
+ */
 @Service
 @RequiredArgsConstructor
 public class PerformanceService {
@@ -30,9 +41,25 @@ public class PerformanceService {
     private final UserRepository userRepository;
     private final PerformanceMapper performanceMapper;
 
+    /** Timezone used to show the start time of the performances, read from the app configuration. */
     @Value("${app.timezone}")   // ${} -> application property placeholder
     private String timezone;
 
+    /**
+     * Retrieves the upcoming scheduled performances of a performer.
+     *
+     * Admins can retrieve the performances of any user within the venue.
+     * Other users only get their own, and they must be performers.
+     * Only events in the future that are not cancelled are considered,
+     * and start times are converted to the configured timezone.
+     *
+     * @param userId identifier of the target user (used only by admins)
+     * @param currentUserId identifier of the requesting user
+     * @param isAdmin whether the requesting user has admin privileges
+     * @param venue venue of the requesting user
+     * @return list of ScheduledPerformanceDto
+     * @throws ResourceNotFoundException if the user does not exist within the venue
+     */
     @Transactional
     public List<ScheduledPerformanceDto> getPerformances(UUID userId, UUID currentUserId, Boolean isAdmin, Venue venue) {
 
@@ -60,6 +87,19 @@ public class PerformanceService {
                 .toList();
     }
 
+    /**
+     * Adds a new performance to a user.
+     *
+     * Admins can add a performance to any user within the venue.
+     * Other users can only add it to themselves, and they must be performers.
+     *
+     * @param performanceDto data of the performance to add
+     * @param userId identifier of the target user (used only by admins)
+     * @param currentUserId identifier of the requesting user
+     * @param isAdmin whether the requesting user has admin privileges
+     * @param venue venue of the requesting user
+     * @throws ResourceNotFoundException if the user does not exist within the venue
+     */
     @Transactional
     public void addPerformance(PerformanceDto performanceDto, UUID userId, UUID currentUserId, Boolean isAdmin, Venue venue){
 
@@ -86,6 +126,13 @@ public class PerformanceService {
         performanceRepository.save(performance);
     }
 
+    /**
+     * Deletes a performance by marking it as INACTIVE.
+     * The performance is not removed, so it can't be scheduled in new events anymore.
+     *
+     * @param performanceId identifier of the performance
+     * @throws ResourceNotFoundException if the performance does not exist
+     */
     @Transactional
     public void deletePerformance(UUID performanceId){
         Performance performance = performanceRepository.findById(performanceId)
@@ -94,6 +141,14 @@ public class PerformanceService {
         performance.setPerformanceType(PerformanceType.INACTIVE);
     }
 
+    /**
+     * Updates the type and the duration of an existing performance.
+     *
+     * @param performanceId identifier of the performance
+     * @param performanceType the new performance type
+     * @param duration the new duration in minutes
+     * @throws ResourceNotFoundException if the performance does not exist
+     */
     @Transactional
     public void modifyPerformance(UUID performanceId, PerformanceType performanceType, int duration) {
         Performance performance = performanceRepository.findById(performanceId)

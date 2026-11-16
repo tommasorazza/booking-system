@@ -21,11 +21,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 /**
  * Configures Spring Security for the application.
  *
- * This configuration sets up stateless JWT-based authentication for the REST API.
+ * This configuration sets up stateless JWT based authentication for the REST API.
  * It defines which endpoints are publicly accessible and ensures that all other
  * requests require authentication. The {@link JwtAuthenticationFilter} is
  * added to the security filter chain to extract and validate JWT tokens from
- * incoming requests and populate the Spring Security context.
+ * incoming requests and populate the Spring Security context. The
+ * {@link RateLimitingFilter} runs right after it in the same chain.
  *
  * CSRF is disabled since the API is stateless. Swagger/OpenAPI documentation
  * is publicly accessible.
@@ -44,13 +45,15 @@ public class SecurityConfig {
      * Configures the Spring Security filter chain.
      *
      * This method sets up:
-     * - Disabling CSRF protection since the API is stateless
-     * - Authorization rules:
-     *     - Permit all requests to `/auth/**` (login/register endpoints)
-     *     - Permit all requests to Swagger/OpenAPI docs (`/swagger-ui/**`, `/v3/api-docs/**`)
-     *     - Require authentication for all other endpoints
-     * - Registers the custom JwtAuthenticationFilter before
-     *   UsernamePasswordAuthenticationFilter
+     *  Disabling of CSRF protection since the API is stateless
+     *  Stateless sessions and a 401 response for unauthenticated requests
+     *  Authorization rules:
+     *      Permit all requests to /auth/** (login and register endpoints)
+     *      Permit all requests to Swagger/OpenAPI docs (/swagger-ui/** and /v3/api-docs/**)
+     *      Require authentication for all other endpoints
+     *  The custom JwtAuthenticationFilter, registered before
+     *  UsernamePasswordAuthenticationFilter
+     *  The RateLimitingFilter, registered right after the JwtAuthenticationFilter
      *
      * @param http the HttpSecurity object used to configure HTTP security
      * @return the configured SecurityFilterChain bean
@@ -64,8 +67,8 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 // Make all the HTTP requests stateless
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                // Returns 401 for unauthorized requests, instead of redirecting them to the login page
+                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        // Returns 401 for unauthorized requests, instead of redirecting them to the login page
                 ).exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
                                 response.sendError(HttpStatus.UNAUTHORIZED.value(),
@@ -122,11 +125,21 @@ public class SecurityConfig {
      */
     @Bean
     public org.springframework.security.authentication.AuthenticationManager authenticationManager(                     // config is an autoconfigured spring security class that knows how to assemble an authentication manager object from the already specified DAOAuthenticationProvider
-            org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration config
+                                                                                                                        org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration config
     ) throws Exception {
         return config.getAuthenticationManager();
     }
 
+    /**
+     * Disables the automatic servlet registration of the RateLimitingFilter.
+     *
+     * Since the filter is a Spring bean, Spring Boot would register it as a
+     * servlet filter on its own and it would run twice. Disabling it here means
+     * it only runs inside the security filter chain.
+     *
+     * @param filter the RateLimitingFilter bean
+     * @return a FilterRegistrationBean with the registration disabled
+     */
     @Bean
     public FilterRegistrationBean<RateLimitingFilter> rateLimitingFilterRegistration(RateLimitingFilter filter) {
         FilterRegistrationBean<RateLimitingFilter> registration = new FilterRegistrationBean<>(filter);

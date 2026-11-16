@@ -18,6 +18,7 @@ import com.razza.bookingsystem.security.CustomUserDetails;
 import com.razza.bookingsystem.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -29,12 +30,12 @@ import java.time.OffsetDateTime;
 import java.util.*;
 
 /**
- * Service responsible for authentication-related operations.
+ * Service responsible for authentication operations.
  *
  * Handles:
- * - user registration
- * - user authentication
- * - venue resolution and creation
+ *  User registration
+ *  User authentication
+ *  Venue resolution
  *
  * Passwords are hashed before being stored.
  * JWT tokens are generated after successful authentication.
@@ -55,18 +56,27 @@ public class AuthService {
      * Registers a new user within a venue.
      *
      * Behavior:
-     * - checks if the email is already in use within the venue
-     * - retrieves a venue with the given name
-     * - hashes the password
-     * - assigns the GUEST role
-     * - persists the user
+     *  Retrieves the venue with the given name
+     *  Checks if the email is already in use within the venue
+     *  Checks that the role is either GUEST or PERFORMER
+     *  Hashes the password
+     *  For performers, also saves their availability and performances
+     *  Persists the user
      *
+     * @param name name of the user
+     * @param birthDate birth date of the user
      * @param email unique email of the user within the venue
      * @param password raw password of the user
+     * @param role role of the user, either GUEST or PERFORMER
      * @param venueName name of the venue
+     * @param availability availability of the user as a String, required for performers
+     * @param performances performances offered by the user, used for performers
      * @return created user as a DTO
      *
+     * @throws ResourceNotFoundException if the venue does not exist
      * @throws UserAlreadyExistsException if a user with the same email already exists within the venue
+     * @throws InvalidRoleException if the role is neither GUEST nor PERFORMER
+     * @throws MissingAvailabilityException if a performer signs up without availability
      */
     public UserDto signup(String name, OffsetDateTime birthDate, String email, String password, Role role, String venueName, String availability, Set<PerformanceDto> performances) {
 
@@ -129,10 +139,10 @@ public class AuthService {
      * Authenticates a user and generates a JWT token.
      *
      * Behavior:
-     * - builds a venue-scoped username (email + venue)
-     * - validates credentials using the authentication manager
-     * - extracts authenticated user details
-     * - generates a signed JWT token
+     *  Builds a username scoped to the venue (email and venue name)
+     *  Validates credentials using the authentication manager
+     *  Extracts authenticated user details
+     *  Generates a signed JWT token
      *
      * @param email user email
      * @param password raw password
@@ -143,12 +153,12 @@ public class AuthService {
      */
     public String login(String email, String password, String venueName) {
 
-        Venue venue = venueRepository.findByName(venueName).orElseThrow(() -> new ResourceNotFoundException("venue"));
+        Venue venue = venueRepository.findByName(venueName).orElseThrow(() -> new BadCredentialsException("invalid credentials"));
 
-        User user = userRepository.findByEmailAndVenue(email, venue).orElseThrow(() -> new ResourceNotFoundException("user"));
+        User user = userRepository.findByEmailAndVenue(email, venue).orElseThrow(() -> new BadCredentialsException("invalid credentials"));
 
         if(user.getStatus().equals(Status.CANCELLED)) {
-            throw new ResourceNotFoundException("user");
+            throw new BadCredentialsException("invalid credentials");
         }
 
         String username = email + "|" + venueName;
@@ -161,6 +171,13 @@ public class AuthService {
         return jwtService.generateToken(userDetails);
     }
 
+    /**
+     * Builds an AvailabilityDto from a String listing the available days.
+     * A day is set to true if its lowercase name appears in the String, for example "monday".
+     *
+     * @param availability the String containing the names of the available days
+     * @return an AvailabilityDto with the matching days set to true
+     */
     public AvailabilityDto availableDaysBuilder(String availability){
         AvailabilityDto days = new AvailabilityDto(false,false,false,false,false,false,false);
         if(availability.contains("monday")) {

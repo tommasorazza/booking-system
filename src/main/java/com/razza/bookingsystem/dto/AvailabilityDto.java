@@ -2,6 +2,10 @@ package com.razza.bookingsystem.dto;
 
 import lombok.*;
 
+/**
+ * Data transfer object for the weekly availability of a performer.
+ * Each day of the week is a Boolean flag telling whether the performer is available on that day.
+ */
 @Getter
 @Setter
 @AllArgsConstructor

@@ -15,17 +15,24 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Integration tests for rate limiting on the authentication endpoint.
+ * Integration test for rate limiting on the authentication endpoint.
  *
- * The full Spring context is started for these tests, including the security
- * filter chain, so requests pass through RateLimitingFilter exactly as they
- * would in production. Rate limiting on auth endpoints is IP-based, since
- * no JWT exists yet when a user is trying to log in.
+ * Setup:
+ * The full Spring context is started, including the security filter chain, so requests
+ * pass through RateLimitingFilter exactly as they would in production.
+ * Rate limiting on auth endpoints is applied per IP address, since no JWT exists yet
+ * when a user is trying to log in.
+ * MockMvc sends all requests from 127.0.0.1, so all requests in a test share the same IP bucket.
  *
- * MockMvc sends all requests from 127.0.0.1, so all requests in a test
- * share the same IP bucket.
+ * Scenarios:
+ * A client sends 11 login requests with wrong credentials from the same IP.
+ *
+ * Expected outcome:
+ * The first 10 requests return 401 Unauthorized, which shows that every request is counted
+ * and not only the successful ones.
+ * The 11th request returns 429 Too Many Requests, blocked by the filter before the
+ * authentication logic runs.
  */
-
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @ActiveProfiles("test")
 @SpringBootTest
@@ -44,7 +51,7 @@ class RateLimitingAuthIntegrationTest {
      *
      * Wrong credentials are used on purpose so the first 10 requests
      * return 401 Unauthorized. This proves the rate limiter counts
-     * every request, not just successful ones — exactly as it would
+     * every request, not just successful ones, exactly as it would
      * against a real attack. The 11th request must be
      * blocked by the filter before authentication logic even runs.
      */
@@ -54,7 +61,7 @@ class RateLimitingAuthIntegrationTest {
         LoginRequest body = LoginRequest.builder()
                 .email("nonexistent@example.com")
                 .password("wrongpassword")
-                .venueName("Venue A")
+                .venueName("venue A")
                 .build();
 
         for (int i = 0; i < 10; i++) {

@@ -28,6 +28,17 @@ import static com.razza.bookingsystem.domain.Role.PERFORMER;
 import static java.util.stream.Collectors.toList;
 import static org.hibernate.Hibernate.list;
 
+/**
+ * Service responsible for managing users.
+ *
+ * Handles:
+ *  Promoting users to admin
+ *  Deleting users (soft delete via status)
+ *  Retrieving performers
+ *  Updating the availability of performers
+ *
+ * Enforces venue isolation, so only users of the given venue can be reached.
+ */
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -39,18 +50,18 @@ public class UserService {
     private final AuthService authService;
     private final AvailabilityMapper availabilityMapper;
     /**
-     * Promotes an existing user to ADMIN within a specific venue.
+     * Promotes an existing guest to ADMIN within a specific venue.
      *
      * The method:
-     * - retrieves the user scoped to the given venue
-     * - updates the role to ADMIN
-     * - persists the updated user entity
+     *  Retrieves the guest user scoped to the given venue
+     *  Updates the role to ADMIN
+     *  Persists the updated user entity
      *
      * @param userId identifier of the user to promote
      * @param venue venue to which the user belongs
      * @return updated user as a DTO
      *
-     * @throws ResourceNotFoundException if the user is not found in the given venue
+     * @throws ResourceNotFoundException if no guest user with that ID is found in the given venue
      */
     public UserDto makeAdmin(UUID userId, Venue venue) {
 
@@ -64,11 +75,12 @@ public class UserService {
     }
 
     /**
-     * Deletes a user if they have no active confirmed bookings.
+     * Deletes (soft deletes) a user if they have no active confirmed bookings.
+     * The user is not removed, their status is set to CANCELLED.
      *
      * Rules:
-     * - user must exist within the given venue
-     * - user cannot have active CONFIRMED bookings
+     *  The user must exist within the given venue
+     *  The user cannot have active CONFIRMED bookings
      *
      * @param userId identifier of the user to delete
      * @param venue venue to which the user belongs
@@ -92,6 +104,16 @@ public class UserService {
         userRepository.save(user);
     }
 
+    /**
+     * Retrieves the performers of a venue that are available on a given date.
+     *
+     * If no date is given, all the performers of the venue are returned.
+     * Otherwise only the performers available on the day of the week of that date.
+     *
+     * @param date the date to check availability for (optional)
+     * @param venueId identifier of the venue
+     * @return list of performers as UserDto
+     */
     public List<UserDto> getAvailablePerformersByDate(LocalDate date, UUID venueId){
         if(date == null) {
             return userRepository.findByRoleAndVenueId(Role.PERFORMER, venueId)
@@ -138,6 +160,15 @@ public class UserService {
         }
     }
 
+    /**
+     * Retrieves a single user of a venue by ID and role.
+     *
+     * @param performerId identifier of the user
+     * @param venue venue to which the user belongs
+     * @param role the role the user must have
+     * @return the user as a DTO
+     * @throws ResourceNotFoundException if no user with that ID and role is found in the venue
+     */
     public UserDto getPerformer(UUID performerId, Venue venue, Role role){
         User user = userRepository.findByIdAndVenueAndRole(performerId, venue, role)
                 .orElseThrow(() -> new ResourceNotFoundException("user", performerId));
@@ -145,6 +176,18 @@ public class UserService {
         return userMapper.toDto(user);
     }
 
+    /**
+     * Updates the weekly availability of a performer.
+     *
+     * Each day is set to true if its lowercase name appears in the given String,
+     * otherwise it is set to false, so the previous availability is fully replaced.
+     *
+     * @param availability the String containing the names of the available days
+     * @param email email of the performer
+     * @param venue venue to which the performer belongs
+     * @throws ResourceNotFoundException if the user is not found in the venue
+     * @throws InvalidRoleException if the user is not a performer
+     */
     public void modifyAvailability(String availability, String email, Venue venue){
         User currentUser = userRepository.findByEmailAndVenue(email, venue)
                 .orElseThrow(() -> new ResourceNotFoundException("user"));

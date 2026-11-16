@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Represents a event that users can book tickets for.
+ * Represents an event that users can book tickets for.
  * Contains details about the event and its capacity.
  */
 @Entity
@@ -41,6 +41,7 @@ public class Event {
     /** Date and time of the event. */
     private OffsetDateTime date;
 
+    /** Capacity rules of the event. Null if the event does not require booking. */
     @Nullable
     @Embedded
     private BookingPolicy bookingPolicy;
@@ -58,14 +59,21 @@ public class Event {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    /** Schedule of the event, as a list of time slots with the performers playing in each. */
     @ElementCollection
     @CollectionTable(name = "scheduleTable", joinColumns = @JoinColumn(name = "event_id"))
     private List<TimeSlot> schedule;
 
+    /** Whether the event is restricted to users aged 18 or older. */
     private Boolean eighteenPlus;
 
+    /**
+     * Returns the end time of the event, which is the end of the last time slot in the schedule.
+     *
+     * @return the end time of the last time slot
+     */
     public OffsetDateTime getEndTime() {
         return schedule.getLast().getEndTime();
     }
 
-    }
+}

@@ -19,10 +19,20 @@ import static org.mockito.Mockito.verify;
 /**
  * Unit tests for RateLimitingFilter.
  *
- * No Spring context is started — the filter is instantiated directly
- * and called manually with fake request/response objects.
- * Each test gets a fresh filter instance via @BeforeEach,
- * so bucket state never leaks between tests.
+ * Setup:
+ * No Spring context is started. The filter is instantiated directly and called
+ * manually with mock request and response objects.
+ * Each test gets a fresh filter instance via @BeforeEach, so bucket state never
+ * leaks between tests.
+ *
+ * Scenarios:
+ * A single IP sends 11 requests to the auth endpoint.
+ * Two different IPs send requests, one of them after exhausting its bucket.
+ *
+ * Expected outcome:
+ * The first 10 requests from an IP continue the filter chain and the 11th is blocked with HTTP 429.
+ * The blocked request never reaches the controller.
+ * Each IP has its own independent bucket, so exhausting one has no effect on another.
  */
 class RateLimitingFilterUnitTest {
 

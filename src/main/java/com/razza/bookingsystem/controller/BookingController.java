@@ -29,7 +29,7 @@ public class BookingController {
     private final UserRepository userRepository;
 
     /**
-     * Creates a new booking for a event.
+     * Creates a new booking for an event.
      *
      * If the authenticated user is an admin, a booking can be created on behalf of another user.
      * Otherwise, the booking is created for the authenticated user.
@@ -55,7 +55,7 @@ public class BookingController {
         if(targetUser != null && targetUser.getRole() == Role.PERFORMER) {
             throw InvalidRoleException.wrongBookingRole();
         }
-        
+
         User currentUser = userRepository.findById(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("user", user.getId()));
 
@@ -76,7 +76,7 @@ public class BookingController {
      *
      * @param bookingId the ID of the booking to update
      * @param quantity the new quantity of tickets
-     * @param authentication the current authenticated user
+     * @param user the authenticated user details
      * @return the updated booking as a BookingDto
      */
     @PutMapping("/bookings/{bookingId}")
@@ -128,7 +128,7 @@ public class BookingController {
      * Otherwise, only the authenticated user's bookings are returned.
      *
      * @param userId optional ID of the user whose bookings are requested
-     * @param authentication the current authenticated user
+     * @param user the authenticated user details
      * @return list of BookingDto
      */
     @GetMapping("/bookings/userBookings")
@@ -170,7 +170,7 @@ public class BookingController {
     /**
      * Checks whether the authenticated user has admin privileges.
      *
-     * @param auth the Authentication object
+     * @param user the authenticated user details
      * @return true if the user has ROLE_ADMIN, false otherwise
      */
     private boolean isAdmin(CustomUserDetails user) {

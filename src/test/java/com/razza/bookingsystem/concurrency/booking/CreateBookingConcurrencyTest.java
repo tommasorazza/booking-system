@@ -28,27 +28,19 @@ import static org.junit.jupiter.api.Assertions.*;
  * Integration test that verifies concurrent booking creation for the same user and event.
  *
  * Scenario:
- * - A single user attempts to create multiple bookings for the same event concurrently.
- * - The event has sufficient capacity initially.
+ * A single user attempts to create multiple bookings for the same event concurrently.
+ * The event has sufficient capacity initially.
  *
  * Concurrency model:
- * - 10 threads are executed in parallel using an ExecutorService.
- * - A CountDownLatch is used to start all threads simultaneously to maximize race conditions.
- * - Each thread calls createBooking with the same user and event.
+ * 10 threads are executed in parallel using an ExecutorService.
+ * A CountDownLatch is used to start all threads simultaneously to maximize race conditions.
+ * Each thread calls createBooking with the same user and event.
  *
- * Expected behavior:
- * - Only one booking should succeed due to the unique constraint and business validation.
- * - All other concurrent attempts should fail.
- * - BookingAlreadyPresentException will occur.
- *
- * Assertions:
- * - Exactly one successful booking creation.
- * - Nine failed attempts.
- * - Only one booking persisted in the database for the event.
- * - Event capacity is reduced correctly by one unit.
- * - All thrown exceptions are of expected types.
- *
- * @throws Exception if thread synchronization or execution fails
+ * Expected outcome:
+ * Exactly 1 booking creation succeeds, thanks to the unique constraint and business validation.
+ * The remaining 9 attempts fail, each with a BookingAlreadyPresentException.
+ * Only one booking is persisted in the database for the event.
+ * Event available capacity is reduced by exactly one unit.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class CreateBookingConcurrencyTest extends PostgresConcurrencyTestBase {

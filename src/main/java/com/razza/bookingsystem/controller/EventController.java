@@ -53,6 +53,20 @@ public class EventController {
         return eventService.createEvent(dto, user.getVenue());
     }
 
+    /**
+     * Creates a new event by copying an existing one to a new location and date.
+     *
+     * The schedule is copied too, with every time slot shifted by the same
+     * amount of time between the old date and the new one.
+     *
+     * Access restricted to users with ADMIN role.
+     *
+     * @param eventId the ID of the event to copy
+     * @param location the location of the new event
+     * @param date the date of the new event
+     * @param user the authenticated user
+     * @return the created event as EventResponseDto
+     */
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{eventId}")
     public EventResponseDto createEventById(@PathVariable UUID eventId, @RequestParam String location, @RequestParam OffsetDateTime date, @AuthenticationPrincipal CustomUserDetails user){
@@ -96,11 +110,11 @@ public class EventController {
     }
 
     /**
-     * Retrieves a event by its ID within the authenticated user's venue.
+     * Retrieves the events happening on a given date within the authenticated user's venue.
      *
-     * @param id the ID of the event
+     * @param date the date to look up
      * @param user the authenticated user
-     * @return the event as EventResponseDto
+     * @return a list of EventByDateResponseDto
      */
     @GetMapping("/{date}")
     public List<EventByDateResponseDto> getEventByDate(@PathVariable LocalDate date,
@@ -129,7 +143,7 @@ public class EventController {
     }
 
     /**
-     * Deletes a event by its ID.
+     * Deletes an event by its ID.
      *
      * Access restricted to users with ADMIN role.
      *

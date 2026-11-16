@@ -11,7 +11,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
- * Data Transfer Object representing a event.
+ * Data Transfer Object representing an event.
  * Used for creating or updating events.
  */
 @Getter
@@ -21,7 +21,7 @@ import java.util.List;
 @Builder
 public class EventRequestDto {
 
-    /** Name/title of the event. */
+    /** Name or title of the event. */
     @NotBlank
     private String name;
 
@@ -41,8 +41,10 @@ public class EventRequestDto {
     @Positive
     private Integer totalCapacity;
 
+    /** Schedule of the event, as a list of time slots with the performers playing in each. */
     private List<TimeSlot> schedule;
 
+    /** Whether the event is restricted to users aged 18 or older. */
     private Boolean eighteenPlus;
 
 }

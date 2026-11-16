@@ -22,9 +22,34 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.OffsetDateTime;
 
+import static com.razza.bookingsystem.domain.Status.CONFIRMED;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * Integration test for the authentication endpoints, exercising signup and login
+ * through MockMvc against the full Spring context with the test profile.
+ *
+ * Setup:
+ * Creates a venue named VenueA and a confirmed guest user belonging to it.
+ *
+ * Signup scenarios:
+ * A valid request, a request with an already registered email, a request for a venue
+ * that does not exist, and a request with a missing or malformed body.
+ *
+ * Login scenarios:
+ * Valid credentials, a wrong password, an unknown email, and a venue the user does not belong to.
+ *
+ * Expected outcome:
+ * A valid signup returns 200 with the created user data.
+ * A duplicate email returns 409, an unknown venue returns 404 and an invalid body returns 400.
+ * A valid login returns 200 with a non empty token.
+ * A wrong password, an unknown email and a wrong venue all return 401.
+ *
+ * Returning the same 401 whether or not the email exists ensures that no information
+ * about user existence is leaked to potential attackers.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -49,6 +74,7 @@ class AuthControllerIntegrationTest {
                 .password(passwordEncoder.encode("correctpassword"))
                 .role(Role.GUEST)
                 .venue(venueA)
+                .status(CONFIRMED)
                 .build());
     }
 

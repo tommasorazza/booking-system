@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Data Transfer Object representing a event.
+ * Data Transfer Object representing an event.
  * Used to return event details as a response.
  */
 @Getter
@@ -18,7 +18,7 @@ import java.util.UUID;
 @Builder
 public class EventResponseDto {
 
-    /** Name/title of the event. */
+    /** Name or title of the event. */
     private String name;
 
     /** Description or details about the event. */
@@ -36,7 +36,9 @@ public class EventResponseDto {
     /** Number of seats still available for booking. */
     private Integer availableCapacity;
 
+    /** Schedule of the event, as a list of time slots with the performers playing in each. */
     private List<TimeSlot> schedule;
 
+    /** Whether the event is restricted to users aged 18 or older. */
     private Boolean eighteenPlus;
 }

@@ -27,21 +27,19 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests that concurrent cancellation attempts on the same booking are handled correctly.
  *
  * Setup:
- * - Creates a venue, a event with 18 available seats out of 20 total
- * - Creates 10 admin users belonging to the same venue
- * - Creates a confirmed booking of 2 seats for the first admin user
+ * Creates a venue and an event with 18 available seats out of 20 total.
+ * Creates 10 admin users belonging to the same venue.
+ * Creates a confirmed booking of 2 seats for the first admin user.
  *
  * Execution:
- * - Spawns 10 threads, each attempting to cancel the same booking simultaneously
- * - All threads are held at a latch and released at the same time to maximize contention
+ * Spawns 10 threads, each attempting to cancel the same booking simultaneously.
+ * All threads are held at a latch and released at the same time to maximize contention.
  *
  * Expected outcome:
- * - Exactly 1 cancellation succeeds
- * - The remaining 9 attempts fail
- * - Event available capacity is restored by exactly 2 (the booked quantity)
- * - The booking status is CANCELLED
- *
- * @throws Exception if thread coordination fails
+ * Exactly 1 cancellation succeeds.
+ * The remaining 9 attempts fail.
+ * Event available capacity is restored by exactly 2 (the booked quantity).
+ * The booking status is CANCELLED.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class CancelBookingConcurrencyTest extends PostgresConcurrencyTestBase {

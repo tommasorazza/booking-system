@@ -16,17 +16,26 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Integration tests for rate limiting on authenticated endpoints.
+ * Integration test for rate limiting on authenticated endpoints.
  *
- * The full Spring context is started for these tests, including the security
- * filter chain, so requests pass through RateLimitingFilter exactly as they
- * would in production. Rate limiting on authenticated endpoints is user-based,
- * meaning each user has their own independent bucket keyed by their UUID.
- *
+ * Setup:
+ * The full Spring context is started, including the security filter chain, so requests
+ * pass through RateLimitingFilter exactly as they would in production.
+ * Rate limiting on authenticated endpoints is applied per user, meaning each user has
+ * an independent bucket keyed by their UUID.
  * A fresh JWT for Alice is obtained before each test via a real login request.
+ *
+ * Scenarios:
+ * A user sends 100 requests to an authenticated endpoint and then one more.
+ * A second user, Ariana, makes a request after Alice has exhausted her bucket.
+ *
+ * Expected outcome:
+ * The 101st request of a user is rejected with HTTP 429.
+ * Exhausting one user's bucket has no effect on the requests of another user.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -55,12 +64,13 @@ class RateLimitingAuthenticatedIntegrationTest {
         LoginRequest loginRequest = LoginRequest.builder()
                 .email("alice@example.com")
                 .password("password")
-                .venueName("Venue A")
+                .venueName("venue A")
                 .build();
 
         MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
+                .andDo(print())
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -72,7 +82,7 @@ class RateLimitingAuthenticatedIntegrationTest {
      * after exhausting their bucket of 100 requests.
      *
      * The first 100 requests drain the bucket. The 101st must be
-     * rate-limited regardless of the endpoint responding.
+     * rejected with 429 regardless of the endpoint responding.
      */
     @Transactional
     @Test
@@ -101,7 +111,7 @@ class RateLimitingAuthenticatedIntegrationTest {
         LoginRequest arianaLogin = LoginRequest.builder()
                 .email("ariana@example.com")
                 .password("password")
-                .venueName("Venue A")
+                .venueName("venue A")
                 .build();
 
         MvcResult arianaResult = mockMvc.perform(post("/auth/login")

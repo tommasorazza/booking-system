@@ -8,7 +8,7 @@ import java.util.UUID;
 
 /**
  * Represents a booking made by a user for a specific event.
- * A user can book multiple seats for a event, but cannot book
+ * A user can book multiple seats for an event, but cannot book
  * the same event more than once (enforced by unique constraint).
  */
 @Entity
@@ -53,7 +53,7 @@ public class Booking {
     @Enumerated(EnumType.STRING)
     private Status status;
 
-    /** version field to guarantee thread safety */
+    /** Version field used for optimistic locking, so concurrent updates don't overwrite each other. */
     @Version
     private Long version;
 

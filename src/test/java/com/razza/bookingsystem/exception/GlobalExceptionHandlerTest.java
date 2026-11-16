@@ -23,10 +23,20 @@ import static org.mockito.Mockito.mock;
 /**
  * Unit tests for {@link GlobalExceptionHandler}.
  *
- * No Spring context is started — the handler is instantiated directly and each
- * handler method is called with the exception it is meant to handle.
- * Every test verifies the HTTP status, the status written in the body, the error
- * message and the presence of the timestamp.
+ * Setup:
+ * No Spring context is started. The handler is instantiated directly before each test.
+ *
+ * Scenarios:
+ * Each handler method is called directly with the exception it is meant to handle.
+ * The cases are grouped by HTTP status: 409, 404, 403, 401, 400 and 500.
+ * Unreadable request bodies are also covered, with and without an enum related cause.
+ *
+ * Expected outcome:
+ * Every response has the expected HTTP status.
+ * The same status is written in the response body.
+ * The error message is the expected one, which is a fixed message for authentication
+ * and unexpected errors so that internal details are never sent to the client.
+ * The timestamp is present.
  */
 class GlobalExceptionHandlerTest {
 
@@ -147,8 +157,8 @@ class GlobalExceptionHandlerTest {
     }
 
     /**
-     * IllegalArgumentException is currently mapped to 409 CONFLICT, even if the
-     * Javadoc above the handler says 400 BAD_REQUEST.
+     * An IllegalArgumentException is mapped to 409 CONFLICT, with its own message
+     * returned as the error.
      */
     @Transactional
     @Test
@@ -262,7 +272,7 @@ class GlobalExceptionHandlerTest {
         assertResponse(handler.handleBadCapacity(ex), HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    // 400 BAD REQUEST — request body that can't be read
+    // 400 BAD REQUEST, request body that can't be read
 
     /**
      * When the JSON contains a value that is not part of an enum, the message should

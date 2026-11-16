@@ -39,9 +39,32 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      */
     Optional<User> findByIdAndVenueId(UUID id, UUID venueId);
 
+    /**
+     * Retrieves all users with a given role within a specific venue.
+     *
+     * @param role the role to filter by
+     * @param venueId the unique identifier of the venue
+     * @return a list of users with that role in the venue
+     */
     List<User> findByRoleAndVenueId(Role role, UUID venueId);
 
+    /**
+     * Finds a user by their email address and role within a specific venue.
+     *
+     * @param email the email address of the user
+     * @param venue the venue to which the user belongs
+     * @param role the role of the user
+     * @return an {@link Optional} containing the user if found, or empty otherwise
+     */
     Optional<User> findByEmailAndVenueAndRole(String email, Venue venue, Role role);
 
+    /**
+     * Finds a user by their ID and role within a specific venue.
+     *
+     * @param id the unique identifier of the user
+     * @param venue the venue to which the user belongs
+     * @param role the role of the user
+     * @return an {@link Optional} containing the user if found, or empty otherwise
+     */
     Optional<User> findByIdAndVenueAndRole(UUID id, Venue venue, Role role);
 }

@@ -50,25 +50,31 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for EventService.
  *
- * Uses Mockito to isolate the service layer from its dependencies
- * (EventRepository, BookingRepository, EmailService, EventMapper,
- * PerformanceRepository, UserRepository, and PerformanceService).
- * Each test method covers a single behavioral expectation so that
- * failures are easy to trace.
+ * Setup:
+ * No Spring context is started. Mockito isolates the service layer from its dependencies:
+ * EventRepository, BookingRepository, EmailService, EventMapper,
+ * PerformanceRepository, UserRepository and PerformanceService.
+ * A venue, a future event with full capacity, an available performer with a matching
+ * active performance and a valid time slot are created before each test.
+ * Each test method covers a single behavioral expectation so that failures are easy to trace.
  *
- * Test groups:
- * createEvent      - creation, validation, and initialization rules
- * getEventsByDate  - retrieval and venue/timezone scoping
- * updateEvent      - updates, capacity adjustments, and email notifications
- * deleteEvent      - soft deletion and guard conditions
- * getAllEvents     - pagination and venue scoping
- * isScheduleValid  - schedule validation rules, exercised through createEvent
+ * Scenarios:
+ * createEvent covers creation, capacity validation, initialization rules and schedule validation.
+ * getEventsByDate covers retrieval of events with venue and timezone scoping.
+ * updateEvent covers updates, capacity adjustments and email notifications.
+ * deleteEvent covers soft deletion and its guard conditions.
+ * getAllEvents covers pagination with venue scoping.
+ *
+ * Expected outcome:
+ * Valid requests return the mapped DTO and set the expected defaults on the event.
+ * Invalid requests throw the matching exception and nothing is saved.
+ * Email notifications are sent only when the date, the location or the schedule changes.
  *
  * Note on isScheduleValid: this method is private on EventService, so it
  * cannot be tested directly. It is exercised indirectly through
  * createEvent, since createEvent reaches it without any of the extra
  * side effects that updateEvent has (booking counts, capacity branching,
- * email diffing), which keeps each schedule-validation test focused on a
+ * email diffing), which keeps each schedule validation test focused on a
  * single failure condition.
  */
 @ExtendWith(MockitoExtension.class)
@@ -205,10 +211,10 @@ class EventServiceTest {
                 .thenReturn(List.of());
     }
 
-    // ----- createEvent -----
+    // createEvent
 
     /**
-     * Verifies that a valid request produces a non-null response DTO
+     * Verifies that a valid request produces a response DTO that is not null,
      * with the expected name and capacity values.
      */
     @Transactional
@@ -330,7 +336,7 @@ class EventServiceTest {
 
     /**
      * Verifies that a BadCapacityException is thrown when the requested
-     * capacity is zero or negative.
+     * capacity is zero, and that no save is attempted.
      */
     @Transactional
     @Test
@@ -347,7 +353,7 @@ class EventServiceTest {
 
     /**
      * Verifies that a capacity of 9999 is accepted as a valid upper
-     * boundary value
+     * boundary value.
      */
     @Transactional
     @Test
@@ -750,6 +756,7 @@ class EventServiceTest {
         verify(eventRepository, never()).save(any());
     }
 
+    // getEventsByDate
 
     /**
      * Verifies that getEventsByDate returns a correctly mapped list of
@@ -793,10 +800,10 @@ class EventServiceTest {
         assertThat(result).isEmpty();
     }
 
-    // ----- updateEvent -----
+    // updateEvent
 
     /**
-     * Verifies that a valid update request returns a non-null response DTO.
+     * Verifies that a valid update request returns a response DTO that is not null.
      */
     @Transactional
     @Test
@@ -826,9 +833,9 @@ class EventServiceTest {
 
     /**
      * Verifies that increasing the total capacity adjusts availableCapacity
-     * correctly by preserving the number of already-booked seats.
+     * correctly by preserving the number of seats that are already booked.
      *
-     * Example: 100 total, 60 available (40 booked) -> 150 total, 110 available.
+     * Example: 100 total and 60 available (40 booked) becomes 150 total and 110 available.
      */
     @Transactional
     @Test
@@ -920,7 +927,7 @@ class EventServiceTest {
      * Verifies that a PastEventException is thrown, and no save occurs,
      * when the new date supplied in the update request lies in the past.
      * The schedule supplied is valid relative to that past date, so the
-     * failure comes from the past-date check rather than from schedule
+     * failure comes from the past date check rather than from schedule
      * validation, which runs first.
      */
     @Transactional
@@ -1052,10 +1059,10 @@ class EventServiceTest {
         verify(bookingRepository, never()).findByEventId(any());
     }
 
-    // ----- deleteEvent -----
+    // deleteEvent
 
     /**
-     * Verifies that deleting a event performs a soft delete by setting its
+     * Verifies that deleting an event performs a soft delete by setting its
      * status to CANCELLED and saving the updated entity, rather than
      * removing the record from the database.
      */
@@ -1107,7 +1114,7 @@ class EventServiceTest {
 
     /**
      * Verifies that a PastEventException is thrown, and no save occurs,
-     * when an attempt is made to delete a event whose date has already
+     * when an attempt is made to delete an event whose date has already
      * passed.
      */
     @Transactional
@@ -1124,7 +1131,7 @@ class EventServiceTest {
         verify(eventRepository, never()).save(any());
     }
 
-    // ----- getAllEvents -----
+    // getAllEvents
 
     /**
      * Verifies that the service returns a correctly mapped page of

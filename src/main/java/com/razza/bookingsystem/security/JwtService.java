@@ -14,11 +14,11 @@ import java.util.List;
 
 /**
  * Service responsible for handling JWT operations such as:
- * - token generation
- * - extracting claims (email|venueName, role)
- * - validating tokens
+ *  Token generation
+ *  Extracting claims (email|venueName, role)
+ *  Validating tokens
  *
- * This implementation uses HMAC SHA-256 for signing tokens.
+ * This implementation uses HMAC SHA 256 for signing tokens.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,10 +33,10 @@ public class JwtService {
      * Generates a JWT token for the given user.
      *
      * The token contains:
-     * - subject: "email|venueName"
-     * - role: single user role without the ROLE_ prefix
-     * - issued at timestamp
-     * - expiration timestamp
+     *  Subject: "email|venueName"
+     *  Role: single user role without the ROLE_ prefix
+     *  Issued at timestamp
+     *  Expiration timestamp
      *
      * @param userDetails authenticated user details
      * @return signed JWT token
@@ -102,8 +102,8 @@ public class JwtService {
      * Validates the JWT token against the provided user details.
      *
      * A token is considered valid if:
-     * - the subject matches the user (email|venueName)
-     * - the token is not expired
+     *  The subject matches the user (email|venueName)
+     *  The token is not expired
      *
      * @param token JWT token
      * @param userDetails user details to validate against

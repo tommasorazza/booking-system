@@ -15,7 +15,8 @@ import java.time.format.DateTimeFormatter;
 /**
  * Service responsible for sending emails to users.
  *
- * it handles event update notifications
+ * It handles event update notifications, schedule reminders for performers
+ * and event cancellation notifications.
  *
  * Uses asynchronous execution to avoid blocking request threads.
  */
@@ -25,14 +26,15 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
+    /** Sender address used for all the emails. */
     private static final String FROM = "noreply@bookingsystem.com";
 
     /**
-     * Sends an email notification to a user when a event is updated.
+     * Sends an email notification to a user when an event is updated.
      *
      * The email contains:
-     * - updated event date
-     * - updated event location
+     *  Updated event date
+     *  Updated event location
      *
      * This method runs asynchronously.
      *
@@ -68,6 +70,18 @@ public class EmailService {
         }
     }
 
+    /**
+     * Sends an email to a performer when they get a new scheduled performance.
+     *
+     * The email contains the date and the location of the event.
+     *
+     * This method runs asynchronously.
+     *
+     * @param to recipient email address
+     * @param location location of the event
+     * @param eventDate date of the event
+     * @throws RuntimeException if email sending fails
+     */
     @Async
     public void sendScheduleReminder(
             String to,
@@ -97,6 +111,18 @@ public class EmailService {
 
 
 
+    /**
+     * Sends an email to a performer when an event they were scheduled in is canceled.
+     *
+     * The email contains the date and the location of the canceled event.
+     *
+     * This method runs asynchronously.
+     *
+     * @param to recipient email address
+     * @param location location of the canceled event
+     * @param eventDate date of the canceled event
+     * @throws RuntimeException if email sending fails
+     */
     @Async
     public void sendEventDeleteEmail(
             String to,
@@ -150,6 +176,13 @@ public class EmailService {
                 """.formatted(date, location);
     }
 
+    /**
+     * Builds the HTML body for the schedule reminder email.
+     *
+     * @param date formatted event date string
+     * @param location event location
+     * @return HTML email content as a string
+     */
     private String buildHtmlContentSchedule(String date, String location) {
         return """
                 <html>
@@ -164,6 +197,13 @@ public class EmailService {
                 """.formatted(date, location);
     }
 
+    /**
+     * Builds the HTML body for the event cancellation email.
+     *
+     * @param date formatted event date string
+     * @param location event location
+     * @return HTML email content as a string
+     */
     private String buildHtmlContentDelete(String date, String location) {
         return """
                 <html>

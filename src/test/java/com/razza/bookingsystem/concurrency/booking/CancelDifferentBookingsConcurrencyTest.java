@@ -28,33 +28,22 @@ import static org.junit.jupiter.api.Assertions.*;
  * belonging to different users for the same event.
  *
  * Scenario:
- * - 5 different users each have an existing confirmed booking for the same event.
- * - All bookings are canceled concurrently.
+ * 5 different users each have an existing confirmed booking for the same event.
+ * All bookings are cancelled concurrently.
  *
  * Concurrency model:
- * - 5 threads are executed in parallel using an ExecutorService.
- * - A CountDownLatch is used to ensure all threads start at the same time.
- * - Each thread cancels a different booking belonging to a different user.
+ * 5 threads are executed in parallel using an ExecutorService.
+ * A CountDownLatch is used to ensure all threads start at the same time.
+ * Each thread cancels a different booking belonging to a different user.
  *
- * Expected behavior:
- * - All cancellation operations should succeed.
- * - No race conditions or locking conflicts should occur.
- * - Each booking should be successfully marked as CANCELLED.
- * - Event capacity should be restored exactly by the sum of all canceled bookings.
+ * Expected outcome:
+ * All 5 cancellation attempts succeed and no failures occur.
+ * No race conditions or locking conflicts arise between independent bookings.
+ * Event available capacity is restored by exactly the sum of all cancelled bookings (5 in this case).
+ * All bookings in the database are marked as CANCELLED.
  *
- * Assertions:
- * - All 5 cancellation attempts succeed.
- * - No failures occur.
- * - Event available capacity increases correctly (by 5 in this case).
- * - All bookings in the database are marked as CANCELLED.
- *
- * Notes:
- * - This test validates correct handling of concurrent updates on independent bookings.
- * - It ensures that event capacity updates are safe under concurrent access.
- * - It also verifies that no unintended locking or transaction conflicts occur when
- *   multiple users cancel different bookings simultaneously.
- *
- * @throws Exception if thread execution or synchronization fails
+ * This test ensures that event capacity updates remain safe under concurrent access
+ * when multiple users cancel different bookings simultaneously.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class CancelDifferentBookingsConcurrencyTest extends PostgresConcurrencyTestBase {

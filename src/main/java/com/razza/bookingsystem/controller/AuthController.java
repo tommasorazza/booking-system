@@ -9,8 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Controller for authentication-related operations such as signup and login.
- * Handles user registration and JWT-based authentication.
+ * Controller for authentication operations such as signup and login.
+ * Handles user registration and authentication based on JWT tokens.
  */
 @RestController
 @RequestMapping("/auth")
@@ -22,7 +22,8 @@ public class AuthController {
     /**
      * Registers a new user.
      *
-     * @param signupRequest request containing email, password, and venue name
+     * @param signupRequest request containing name, birth date, email, password, role, venue name,
+     *                      and optionally availability and performances (for performers)
      * @return the created user as a UserDto
      */
     @PostMapping("/signup")

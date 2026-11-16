@@ -27,15 +27,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * Tests concurrent modifications of a booking quantity by multiple admins.
  *
  * Scenario:
- * - A booking initially has quantity = 2
- * - Event has sufficient capacity
- * - 10 admins attempt to modify the booking concurrently
+ * A booking initially has a quantity of 2.
+ * The event has sufficient capacity.
+ * 10 admins attempt to modify the booking concurrently.
  *
  * Expected outcome:
- * - Multiple modifications may succeed due to optimistic locking retries
- * - Final booking quantity must be one of the requested values
- * - Event available capacity must remain consistent:
- *   totalCapacity - finalBookingQuantity
+ * Multiple modifications may succeed due to optimistic locking retries.
+ * The final booking quantity must be one of the requested values.
+ * Event available capacity must remain consistent, meaning it equals the total capacity
+ * minus the final booking quantity.
  *
  * This ensures that concurrent modifications do not corrupt capacity.
  */
@@ -159,9 +159,7 @@ class ModifyBookingConcurrencyTest extends PostgresConcurrencyTestBase {
         System.out.println("FAIL: " + fail.get());
         System.out.println("FINAL QUANTITY: " + finalQuantity);
 
-        /**
-         * The final quantity must be between 1 and 10
-         */
+        // The final quantity must be between 1 and 10
         boolean validQuantity = finalQuantity >= 1 && finalQuantity <= 10;
         assertEquals(true, validQuantity, "Final quantity must be within expected range");
 

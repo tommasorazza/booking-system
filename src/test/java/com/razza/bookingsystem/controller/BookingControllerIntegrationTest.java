@@ -22,6 +22,26 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * Integration test for the booking endpoints, exercising creation, modification,
+ * cancellation and retrieval through MockMvc against the full Spring context with the test profile.
+ *
+ * Setup:
+ * Creates two venues, VenueA and VenueB.
+ * Creates a guest user and an admin in VenueA, and a guest user in VenueB.
+ * Creates one event per venue and a confirmed booking of 2 seats for the VenueA guest.
+ *
+ * Scenarios:
+ * Each endpoint is called without authentication, as the booking owner, as an admin
+ * of the same venue, and as a user or admin from a different venue.
+ *
+ * Expected outcome:
+ * Requests without a token return 401.
+ * Owners and admins of the same venue can create, modify, cancel and list bookings, returning 200.
+ * A user who is not the owner of a booking but belongs to the same venue gets 403 when cancelling it.
+ * Any access across venues returns 404, so that the existence of resources
+ * in other venues is not revealed.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc   // used for http endpoints testing, http requests can be sent without actually starting a server
 @ActiveProfiles("test")
@@ -92,6 +112,10 @@ class BookingControllerIntegrationTest {
                 .build());
     }
 
+    /**
+     * Builds the Authorization header value for the given user, consisting of the
+     * Bearer prefix followed by a JWT generated from the user's details and role.
+     */
     private String tokenFor(User user) {
         CustomUserDetails details = new CustomUserDetails(
                 user.getId(), user.getName(), user.getBirthDate(), user.getEmail(), user.getPassword(),
@@ -170,9 +194,7 @@ class BookingControllerIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // PUT /bookings/{bookingId}
-    // -------------------------------------------------------------------------
 
     @Transactional
     @Test

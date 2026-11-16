@@ -20,13 +20,17 @@ import java.util.stream.Collectors;
  * consistent HTTP responses with appropriate status codes and messages.
  *
  * Specific exceptions are mapped to HTTP status codes:
- * - BookingAlreadyCancelledException, BookingAlreadyPresentException,
- *   NotEnoughSeatsException, EventDeleteException, EventDecreaseException,
- *   EmailAlreadyExistsException, UserAlreadyExistsException → 409 CONFLICT
- * - ResourceNotFoundException → 404 NOT FOUND
- * - AccessDeniedException → 403 FORBIDDEN
- * - AuthenticationException → 401 UNAUTHORIZED
- * - Other uncaught exceptions → 500 INTERNAL SERVER ERROR
+ *  409 CONFLICT for BookingAlreadyCancelledException, BookingAlreadyPresentException,
+ *  NotEnoughSeatsException, EventDeleteException, UserDeleteException, EventDecreaseException,
+ *  EmailAlreadyExistsException, UserAlreadyExistsException, PastEventException,
+ *  InactivePerformanceException, IllegalArgumentException and conflicting InvalidScheduleException
+ *  400 BAD_REQUEST for QuantityException, InvalidRoleException, MissingAvailabilityException,
+ *  PerformanceNotMatchingUserException, EmptyScheduleException, BadCapacityException,
+ *  validation errors, unreadable request bodies and non conflicting InvalidScheduleException
+ *  404 NOT FOUND for ResourceNotFoundException
+ *  403 FORBIDDEN for AccessDeniedException
+ *  401 UNAUTHORIZED for AuthenticationException and invalidAgeException
+ *  500 INTERNAL SERVER ERROR for any other uncaught exception
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -103,6 +107,9 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    /**
+     * Handles InactivePerformanceException and returns 409 CONFLICT.
+     */
     @ExceptionHandler(InactivePerformanceException.class)
     public ResponseEntity<Map<String, Object>> handleInactivePerformance(InactivePerformanceException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
@@ -132,6 +139,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    /**
+     * Handles InvalidScheduleException.
+     * Returns 409 CONFLICT if the exception is flagged as a conflict,
+     * otherwise 400 BAD_REQUEST.
+     */
     @ExceptionHandler(InvalidScheduleException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidSchedule(InvalidScheduleException ex) {
         if(ex.isConflict()){
@@ -141,31 +153,51 @@ public class GlobalExceptionHandler {
         }
     }
 
+    /**
+     * Handles InvalidRoleException and returns 400 BAD_REQUEST.
+     */
     @ExceptionHandler(InvalidRoleException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidRole(InvalidRoleException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    /**
+     * Handles MissingAvailabilityException and returns 400 BAD_REQUEST.
+     */
     @ExceptionHandler(MissingAvailabilityException.class)
     public ResponseEntity<Map<String, Object>> handleMissingAvailability(MissingAvailabilityException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    /**
+     * Handles PerformanceNotMatchingUserException and returns 400 BAD_REQUEST.
+     */
     @ExceptionHandler(PerformanceNotMatchingUserException.class)
     public ResponseEntity<Map<String, Object>> handlePerformanceNotMatchingUser(PerformanceNotMatchingUserException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    /**
+     * Handles EmptyScheduleException and returns 400 BAD_REQUEST.
+     */
     @ExceptionHandler(EmptyScheduleException.class)
     public ResponseEntity<Map<String, Object>> handleEmptySchedule(EmptyScheduleException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    /**
+     * Handles BadCapacityException and returns 400 BAD_REQUEST.
+     */
     @ExceptionHandler(BadCapacityException.class)
     public ResponseEntity<Map<String, Object>> handleBadCapacity(BadCapacityException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    /**
+     * Handles request bodies that can't be read and returns 400 BAD_REQUEST.
+     * If an enum value is invalid, the message names the wrong value and the enum,
+     * otherwise a generic malformed body message is returned.
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, Object>> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {   // spring exception thrown when JSON can't deserialize the body
         Throwable cause = ex.getCause();
@@ -180,18 +212,25 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles IllegalArgumentException and returns 400 BAD_REQUEST.
+     * Handles IllegalArgumentException and returns 409 CONFLICT.
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    /**
+     * Handles invalidAgeException and returns 401 UNAUTHORIZED.
+     */
     @ExceptionHandler(invalidAgeException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidAge(invalidAgeException ex) {
         return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
+    /**
+     * Handles validation errors on request bodies and returns 400 BAD_REQUEST.
+     * The message lists every invalid field with its error.
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()

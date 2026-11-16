@@ -33,9 +33,23 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for {@link BookingService}.
  *
- * Each nested class covers one public method of the service.
- * Mocks replace all repository and mapper dependencies so tests
- * run without a database.
+ * Setup:
+ * No Spring context is started. Mockito replaces {@link BookingRepository},
+ * {@link EventRepository}, {@link UserRepository} and {@link BookingMapper},
+ * so tests run without a database.
+ * A venue, a guest user, a performer, an admin, a minor user and a user of a different venue
+ * are created before each test, together with two future events, one open to everyone
+ * and one for adults only.
+ *
+ * Scenarios:
+ * Each nested class covers one public method of the service: createBooking, modifyQuantity,
+ * cancelBooking and getUserBookings.
+ * Each method is called by the booking owner and by an admin, and with invalid input such as
+ * an unknown resource, a past event, a wrong venue, a missing permission or a bad quantity.
+ *
+ * Expected outcome:
+ * Valid requests return the mapped DTO or update the capacity as required.
+ * Invalid requests throw the matching exception and nothing is saved, deleted or restored.
  *
  * Naming convention for test methods:
  *   methodName_givenCondition_thenExpectedOutcome
@@ -65,7 +79,10 @@ class BookingServiceTest {
 
     /**
      * Initializes the shared domain objects used across all tests.
-     * Each field is a simple, valid instance; individual tests may
+     * Creates a venue, a guest user, a performer, an admin and a performance,
+     * a user belonging to a different venue, and a minor user.
+     * Also creates two future events in the venue, one open to everyone and one for adults only.
+     * Each object is a simple, valid instance and individual tests may
      * override specific properties to exercise edge cases.
      */
     @BeforeEach
@@ -216,6 +233,11 @@ class BookingServiceTest {
             verify(bookingRepository).save(any(Booking.class));
         }
 
+        /**
+         * Happy path: an admin creates a booking on behalf of a user of the same venue
+         * for a future event with sufficient capacity. The returned DTO must refer
+         * to the user the booking was made for.
+         */
         @Transactional
         @Test
         void createBookingByAdmin_givenValidRequest_thenReturnBookingDto() {
@@ -299,8 +321,8 @@ class BookingServiceTest {
         }
 
         /**
-         * Attempting to book a quantity of zero must throw {@link QuantityException}
-         * before any repository interaction.
+         * Booking an event that has no booking policy must throw {@link QuantityException}
+         * with the message "This event does not require any bookings", and no booking is saved.
          */
         @Transactional
         @Test
@@ -321,7 +343,7 @@ class BookingServiceTest {
 
         /**
          * Attempting to book a quantity of zero must throw {@link QuantityException}
-         * before any repository interaction.
+         * and no booking is saved.
          */
         @Transactional
         @Test
@@ -337,6 +359,10 @@ class BookingServiceTest {
             verify(bookingRepository, never()).save(any());
         }
 
+        /**
+         * An admin who tries to book on behalf of a user belonging to a different venue
+         * must receive a {@link ResourceNotFoundException}, and no booking is saved.
+         */
         @Transactional
         @Test
         void createBookingByAdmin_givenWrongVenue_thenThrowResourceNotFoundException() {
@@ -351,6 +377,10 @@ class BookingServiceTest {
             verify(bookingRepository, never()).save(any());
         }
 
+        /**
+         * A minor who tries to book an event reserved for adults must trigger
+         * the invalid age exception, and no booking is saved.
+         */
         @Transactional
         @Test
         void createBooking_givenInvalidAge_thenThrowInvalidAgeException() {
@@ -417,8 +447,8 @@ class BookingServiceTest {
         }
 
         /**
-         * When a user previously canceled their booking and re-books the same event,
-         * the service should reactivate (update) the existing canceled record instead
+         * When a user previously cancelled their booking and books the same event again,
+         * the service should reactivate (update) the existing cancelled record instead
          * of inserting a duplicate.
          */
         @Transactional
@@ -600,7 +630,7 @@ class BookingServiceTest {
         }
 
         /**
-         * A non-admin user attempting to modify someone else's booking
+         * A user who is not an admin and attempts to modify someone else's booking
          * must receive an AccessDeniedException.
          */
         @Transactional
@@ -734,7 +764,7 @@ class BookingServiceTest {
         /**
          * Happy path: the booking owner cancels their own booking for a
          * future event. The service should restore event capacity and
-         * delete the booking.
+         * cancel the booking through deleteBooking.
          */
         @Transactional
         @Test
@@ -805,7 +835,7 @@ class BookingServiceTest {
         }
 
         /**
-         * Cancelling a booking that is already canceled must throw
+         * Cancelling a booking that is already cancelled must throw
          * BookingAlreadyCancelledException.
          */
         @Transactional
@@ -871,7 +901,7 @@ class BookingServiceTest {
         }
 
         /**
-         * A non-admin user attempting to cancel someone else's booking
+         * A user who is not an admin and attempts to cancel someone else's booking
          * must receive an AccessDeniedException.
          */
         @Transactional

@@ -19,11 +19,11 @@ import java.util.UUID;
  * This class represents the authenticated user within the application
  * and is used by Spring Security during authentication and authorization.
  *
- * It includes additional domain-specific information such as:
- * - unique user ID
- * - venue (for multi-venue support)
+ * It includes additional domain specific information such as:
+ *  Unique user ID
+ *  Venue (for multi venue support)
  *
- * The email is used as the username for authentication.
+ * The email combined with the venue name is used as the username for authentication.
  */
 @Getter
 @Setter
@@ -35,12 +35,18 @@ public class CustomUserDetails implements UserDetails {
      */
     private UUID id;
 
+    /**
+     * Name of the user.
+     */
     private String name;
 
+    /**
+     * Birth date of the user.
+     */
     private OffsetDateTime birthDate;
 
     /**
-     * User's email address, used as the username.
+     * User's email address.
      */
     private String email;
 
@@ -51,10 +57,13 @@ public class CustomUserDetails implements UserDetails {
 
     /**
      * Venue associated with the user.
-     * Used to enforce multi-venue isolation.
+     * Used to enforce multi venue isolation.
      */
     private Venue venue;
 
+    /**
+     * For performers, the weekly availability. Null for other roles.
+     */
     private Availability availability;
 
     /**
@@ -64,8 +73,10 @@ public class CustomUserDetails implements UserDetails {
 
     /**
      * Returns the username used for authentication.
+     * It is the email and the venue name joined by a pipe, so the same email
+     * can be used in different venues.
      *
-     * @return the username
+     * @return the email and the venue name, separated by a pipe
      */
     @Override       //these methods have @Override for compile safety reasons, the compiler knows which method belong to customUserDetails and if customUserDetails.nonExistentMethod() is called, then an error will be thrown because the method will not be recognized, also because they are methods of an interface implementation
     public String getUsername() {

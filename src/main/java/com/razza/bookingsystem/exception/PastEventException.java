@@ -9,7 +9,7 @@ import java.time.OffsetDateTime;
  * This is typically used to prevent creating or updating bookings
  * for events whose date has already passed.
  */
-public class    PastEventException extends RuntimeException {
+public class PastEventException extends RuntimeException {
 
     /**
      * Constructs a new PastEventException with the specified event date.

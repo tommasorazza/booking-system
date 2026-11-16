@@ -28,14 +28,21 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
      * Retrieves a paginated list of events for a given venue.
      *
      * @param venue the venue whose events should be retrieved
+     * @param page the pagination information (page number, size, sorting)
      * @return a Page containing Event objects for the specified venue
      */
     Page<Event> findByVenue(Venue venue, Pageable page);
 
+    /**
+     * Retrieves all events for a given venue, without pagination.
+     *
+     * @param venue the venue whose events should be retrieved
+     * @return a collection of Event objects for the specified venue
+     */
     Collection<Event> findByVenue(Venue venue);
 
     /**
-     * Atomically decreases the available capacity of a event.
+     * Atomically decreases the available capacity of an event.
      *
      * This operation is performed as a single database update to ensure
      * thread safety under concurrent booking requests.
@@ -74,7 +81,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     void increaseCapacity(UUID id, int quantity);
 
     /**
-     * Finds a event by its ID within a specific venue, acquiring a pessimistic write lock.
+     * Finds an event by its ID within a specific venue, acquiring a pessimistic write lock.
      *
      * The pessimistic lock prevents concurrent modifications to the event row
      * for the duration of the transaction, ensuring consistency under concurrent booking requests.
@@ -91,6 +98,15 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     """)
     Optional<Event> findByIdAndVenue(UUID id, Venue venue);
 
+    /**
+     * Retrieves the events of a venue that fall within a date range and have a given status.
+     *
+     * @param start the start of the date range
+     * @param end the end of the date range
+     * @param venue the venue the events belong to
+     * @param status the event status to filter by
+     * @return a list of matching Event objects
+     */
     @Query("""
     SELECT e
     FROM Event e

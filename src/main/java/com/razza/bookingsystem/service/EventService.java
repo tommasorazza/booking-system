@@ -31,14 +31,14 @@ import static java.util.stream.Collectors.toList;
  * Service responsible for managing Event entities.
  *
  * Handles:
- * - event creation
- * - event retrieval
- * - event updates
- * - event deletion (soft delete via status)
- * - paginated listing of events
+ *  Event creation
+ *  Event retrieval
+ *  Event updates
+ *  Event deletion (soft delete via status)
+ *  Paginated listing of events
  *
- * Enforces business rules such as venue isolation
- * and capacity constraints.
+ * Enforces business rules such as venue isolation,
+ * capacity constraints and schedule validity.
  *
  * Access: create, update and delete methods are intended to be accessed by ADMIN users only.
  * Access control is enforced at the controller layer using @PreAuthorize annotations.
@@ -56,6 +56,7 @@ public class EventService {
     private final EventMapper eventMapper;
     private final PerformanceService performanceService;
 
+    /** Timezone used to work out the start and end of a day, read from the app configuration. */
     @Value("${app.timezone}")
     private String timezone;
 
@@ -65,18 +66,21 @@ public class EventService {
      * Access: ADMIN only.
      *
      * Behavior:
-     * - maps the request DTO to an entity
-     * - assigns the venue
-     * - initializes version and status
-     * - sets available capacity equal to total capacity
-     * - validates that event date is not in the past
-     * - persists the event
+     *  Maps the request DTO to an entity
+     *  Validates that the event date is not in the past
+     *  Validates the schedule
+     *  Creates the booking policy if a total capacity is given, with available capacity equal to total capacity
+     *  Assigns the venue and sets the status to CONFIRMED
+     *  Sends a schedule reminder email to each performer in the schedule
+     *  Persists the event
      *
      * @param dto event data transfer object containing event details
      * @param venue venue the authenticated user belongs to
      * @return the created event as an EventResponseDto
      * @throws PastEventException if event date is in the past
-     * @throws IllegalArgumentException if capacity exceeds allowed maximum
+     * @throws EmptyScheduleException if the schedule is empty
+     * @throws InvalidScheduleException if the schedule is not valid
+     * @throws BadCapacityException if capacity is out of the allowed range
      */
     @Transactional
     public EventResponseDto createEvent(EventRequestDto dto, Venue venue) {
@@ -101,19 +105,21 @@ public class EventService {
         event.setVenue(venue);
         event.setStatus(Status.CONFIRMED);
         event.getSchedule().stream().map(TimeSlot::getUserEmail)
-                    .forEach
-                (email -> emailService.sendScheduleReminder(email, event.getLocation(), event.getDate()));
+                .forEach
+                        (email -> emailService.sendScheduleReminder(email, event.getLocation(), event.getDate()));
         Event saved = eventRepository.save(event);
         return eventMapper.toDto(saved);
     }
 
     /**
-     * Retrieves a event by its unique identifier within a venue.
+     * Retrieves the confirmed events happening on a given date within a venue.
      *
-     * @param id event UUID
+     * The start and end of the day are worked out in the configured timezone,
+     * and the event dates in the result are converted to that timezone too.
+     *
+     * @param date the date to look up
      * @param venue venue the authenticated user belongs to
-     * @return corresponding EventResponseDto
-     * @throws ResourceNotFoundException if event does not exist within venue
+     * @return list of EventByDateResponseDto for the events of that date
      */
     @Transactional
     public List<EventByDateResponseDto> getEventsByDate(LocalDate date, Venue venue) {
@@ -130,14 +136,17 @@ public class EventService {
      * Access: ADMIN only.
      *
      * Behavior:
-     * - validates that the event exists within the venue
-     * - updates event fields
-     * - handles capacity changes:
-     *   - decreasing capacity is only allowed if no active bookings exist
-     *   - increasing capacity preserves already booked seats
-     * - sends email notifications if date or location changes
-     * - validates constraints after update
-     * - persists the updated event
+     *  Validates that the event exists within the venue
+     *  Updates name, description, location and date
+     *  Validates the schedule
+     *  Handles capacity changes:
+     *      Decreasing capacity is only allowed if no active bookings exist
+     *      Increasing capacity preserves already booked seats
+     *  Checks that the updated date is not in the past
+     *  Updates the schedule and the 18 plus flag
+     *  Sends email notifications to the users who booked if date or location changes
+     *  Sends email notifications to the performers (old and new) if date, location or schedule changes
+     *  Persists the updated event
      *
      * @param id event UUID
      * @param dto updated event data
@@ -146,7 +155,9 @@ public class EventService {
      * @throws ResourceNotFoundException if event does not exist within venue
      * @throws EventDecreaseException if attempting to decrease capacity while bookings exist
      * @throws PastEventException if updated event date is in the past
-     * @throws IllegalArgumentException if capacity exceeds allowed maximum
+     * @throws BadCapacityException if capacity exceeds allowed maximum
+     * @throws EmptyScheduleException if the schedule is empty
+     * @throws InvalidScheduleException if the schedule is not valid
      */
     @Transactional
     public EventResponseDto updateEvent(UUID id, EventRequestDto dto, Venue venue) {
@@ -215,15 +226,16 @@ public class EventService {
     }
 
     /**
-     * Deletes (soft deletes) a event.
+     * Deletes (soft deletes) an event.
      *
      * Access: ADMIN only.
      *
      * Behavior:
-     * - validates that the event exists within the venue
-     * - prevents deletion if active bookings exist
-     * - prevents deletion of past events
-     * - marks event as CANCELLED instead of removing it
+     *  Validates that the event exists within the venue
+     *  Prevents deletion if active bookings exist
+     *  Prevents deletion of past events
+     *  Sends a cancellation email to each performer in the schedule
+     *  Marks the event as CANCELLED instead of removing it
      *
      * @param id event UUID
      * @param venue venue the authenticated user belongs to
@@ -251,7 +263,7 @@ public class EventService {
             emailService.sendEventDeleteEmail(b.getUser().getEmail(), event.getLocation(), event.getDate());
         } */
         for(String email : event.getSchedule().stream().map(TimeSlot::getUserEmail).toList()) {
-           emailService.sendEventDeleteEmail(email, event.getLocation(), event.getDate());
+            emailService.sendEventDeleteEmail(email, event.getLocation(), event.getDate());
         }
         event.setStatus(Status.CANCELLED);
         eventRepository.save(event);
@@ -269,6 +281,28 @@ public class EventService {
                 .map(eventMapper::toDto);
     }
 
+    /**
+     * Validates the schedule of an event.
+     *
+     * Checks that:
+     *  The schedule is not empty
+     *  The first slot does not start before the event, nor more than 10 hours after it
+     *  The event does not overlap with another confirmed event in the same location
+     *  Every slot refers to an existing performance and a registered performer of the venue
+     *  Every performer is available on that day and not already busy in another location
+     *  Every performance belongs to its performer and is not inactive
+     *  Slots do not overlap, end after they start, and last as long as their performance
+     *
+     * @param schedule the time slots to validate
+     * @param eventStartTime the start of the event
+     * @param location the location of the event
+     * @param venue venue the authenticated user belongs to
+     * @throws EmptyScheduleException if the schedule is empty
+     * @throws InvalidScheduleException if any of the schedule rules is broken
+     * @throws ResourceNotFoundException if a performance does not exist
+     * @throws PerformanceNotMatchingUserException if a performance does not belong to the performer of its slot
+     * @throws InactivePerformanceException if a performance is inactive
+     */
     private void isScheduleValid(List<TimeSlot> schedule, OffsetDateTime eventStartTime, String location, Venue venue) {
 
         if(schedule.isEmpty()){
@@ -286,10 +320,10 @@ public class EventService {
 
         if(eventRepository.findByVenue(venue).stream().filter(event -> event.getStatus() == Status.CONFIRMED).anyMatch(event ->
                 ((event.getDate().isAfter(eventStartTime) && event.getDate().isBefore(schedule.getLast().getEndTime()) && event.getLocation().equals(location))
-                || (event.getEndTime().isAfter(eventStartTime) && event.getEndTime().isBefore(schedule.getLast().getEndTime()) && event.getLocation().equals(location))
-                || (event.getDate()).isBefore(eventStartTime) && event.getEndTime().isAfter(schedule.getLast().getEndTime()) && event.getLocation().equals(location)
-                || (event.getDate().equals(eventStartTime) && event.getEndTime().equals(schedule.getLast().getEndTime()) && event.getLocation().equals(location))
-        ))) {
+                        || (event.getEndTime().isAfter(eventStartTime) && event.getEndTime().isBefore(schedule.getLast().getEndTime()) && event.getLocation().equals(location))
+                        || (event.getDate()).isBefore(eventStartTime) && event.getEndTime().isAfter(schedule.getLast().getEndTime()) && event.getLocation().equals(location)
+                        || (event.getDate().equals(eventStartTime) && event.getEndTime().equals(schedule.getLast().getEndTime()) && event.getLocation().equals(location))
+                ))) {
             throw InvalidScheduleException.overlapping();
         }
 

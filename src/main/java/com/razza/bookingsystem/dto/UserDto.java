@@ -23,21 +23,26 @@ public class UserDto {
     /** Unique identifier for the user. */
     private UUID id;
 
+    /** Name of the user. */
     private String name;
 
+    /** Birth date of the user. */
     private OffsetDateTime birthDate;
 
     /** Email address of the user. */
     private String email;
 
-    /** Role of the user in the system (ADMIN, GUEST). */
+    /** Role of the user in the system (ADMIN, GUEST or PERFORMER). */
     private Role role;
 
+    /** Venue the user belongs to. */
     private Venue venue;
 
+    /** For performers, the weekly availability. Null for other roles. */
     @Nullable
     private AvailabilityDto availability;
 
+    /** For performers, the performances they offer. Null for other roles. */
     @Nullable
     private Set<PerformanceDto> performances;
 }

@@ -14,6 +14,24 @@ import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Integration test for the custom repository queries that modify data directly,
+ * namely EventRepository.decreaseCapacity and BookingRepository.deleteBooking.
+ *
+ * Setup:
+ * Creates a venue, a guest user belonging to it and a confirmed event with 10 available seats.
+ *
+ * Scenarios:
+ * decreaseCapacity is called with fewer seats than available, with exactly the available seats,
+ * with more seats than available, and again after the capacity has already reached zero.
+ * deleteBooking is called on a confirmed booking and on a booking that is already cancelled.
+ *
+ * Expected outcome:
+ * decreaseCapacity updates the event and returns 1 when enough seats are available.
+ * It leaves the event untouched and returns 0 when the requested seats exceed the available ones.
+ * deleteBooking sets the booking status to CANCELLED without raising an exception,
+ * even when the booking was already cancelled.
+ */
 @DataJpaTest        // configures in memory database (H2), scans @Entity, creates repository beans, wraps each test in a transaction (that can be rolled back)
 @ActiveProfiles("test")
 class RepositoryQueryTest {

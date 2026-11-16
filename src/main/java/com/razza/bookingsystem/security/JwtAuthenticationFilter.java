@@ -22,11 +22,11 @@ import java.util.List;
  * and sets authentication in the Spring Security context.
  *
  * This filter:
- * - Extracts the JWT token from the Authorization header
- * - Validates the token
- * - Loads the corresponding user from the database
- * - Extracts roles from the token and converts them into authorities
- * - Sets the authenticated user in the SecurityContext
+ *  Extracts the JWT token from the Authorization header
+ *  Validates the token
+ *  Loads the corresponding user from the database
+ *  Extracts roles from the token and converts them into authorities
+ *  Sets the authenticated user in the SecurityContext
  *
  * It runs once per request and ensures that protected endpoints
  * are accessed only by authenticated users.
