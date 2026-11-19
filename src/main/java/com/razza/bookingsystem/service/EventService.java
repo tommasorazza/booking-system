@@ -22,6 +22,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
@@ -359,5 +360,36 @@ public class EventService {
                 throw InvalidScheduleException.inconsistentSlots(slot);
             }
         }
+    }
+
+    public EventResponseDto createEventById(UUID eventId, String location, OffsetDateTime date, Venue venue) {
+
+        Event event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("event", eventId));
+
+        Event newEvent = new Event();
+
+        newEvent.setName(event.getName());
+        newEvent.setDescription(event.getDescription());
+        newEvent.setLocation(location);
+        newEvent.setDate(date);
+        if(event.getBookingPolicy() != null) {
+            newEvent.setBookingPolicy(event.getBookingPolicy());
+        }
+        List<TimeSlot> newSchedule = new ArrayList<>(event.getSchedule().stream().map(slot ->
+                new TimeSlot(slot.getUserEmail(), slot.getStartTime(), slot.getEndTime(), slot.getPerformanceId())).collect(Collectors.toList()));
+        // this is done in order to create a copy of the old schedule without passing the actual reference, the new
+        // list is instanced as well as every slot inside it
+        long minutes = ChronoUnit.MINUTES.between(event.getDate(), date);
+        for(TimeSlot slot : newSchedule) {
+            slot.setStartTime(slot.getStartTime().plusMinutes(minutes));
+            slot.setEndTime(slot.getEndTime().plusMinutes(minutes));
+        }
+        newEvent.setSchedule(newSchedule);
+        newEvent.setEighteenPlus(event.getEighteenPlus());
+        newEvent.setVenue(venue);
+        newEvent.setStatus(Status.CONFIRMED);
+
+        Event saved = eventRepository.save(newEvent);
+        return eventMapper.toDto(saved);
     }
 }

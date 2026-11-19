@@ -70,29 +70,8 @@ public class EventController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{eventId}")
     public EventResponseDto createEventById(@PathVariable UUID eventId, @RequestParam String location, @RequestParam OffsetDateTime date, @AuthenticationPrincipal CustomUserDetails user){
-        Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new ResourceNotFoundException("event", eventId));
 
-        EventRequestDto eventRequestDto = new EventRequestDto();
-        eventRequestDto.setName(event.getName());
-        eventRequestDto.setDescription(event.getDescription());
-        eventRequestDto.setLocation(location);
-        eventRequestDto.setDate(date);
-        if(event.getBookingPolicy() != null) {
-            eventRequestDto.setTotalCapacity(event.getBookingPolicy().getTotalCapacity());
-        }
-        List<TimeSlot> newSchedule = new ArrayList<>(event.getSchedule().stream().map(slot ->
-                new TimeSlot(slot.getUserEmail(), slot.getStartTime(), slot.getEndTime(), slot.getPerformanceId())).collect(Collectors.toList()));
-        // this is done in order to create a copy of the old schedule without passing the actual reference, the new
-        // list is instanced as well as every slot inside it
-        long minutes = ChronoUnit.MINUTES.between(event.getDate(), date);
-        for(TimeSlot slot : newSchedule) {
-            slot.setStartTime(slot.getStartTime().plusMinutes(minutes));
-            slot.setEndTime(slot.getEndTime().plusMinutes(minutes));
-        }
-        eventRequestDto.setSchedule(newSchedule);
-        eventRequestDto.setEighteenPlus(event.getEighteenPlus());
-        return eventService.createEvent(eventRequestDto, user.getVenue());
+        return eventService.createEventById(eventId, location, date, user.getVenue());
     }
 
     /**
@@ -143,7 +122,6 @@ public class EventController {
     }
 
     /**
-     *
      * Deletes an event by its ID.
      *
      * Access restricted to users with ADMIN role.
