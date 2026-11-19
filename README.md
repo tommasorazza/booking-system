@@ -81,17 +81,56 @@ The SMTP server defaults to `localhost:1025`, which fits a local mail catcher su
 
 ## API overview
 
-| Area | Endpoints | Access |
-|------|-----------|--------|
-| Auth | `POST /auth/signup`, `POST /auth/login` | public |
-| Events | `GET /events` (paginated list), `GET /events/{date}` (events on that date) | authenticated |
-| Events | `POST /events`, `POST /events/{eventId}` (copy an event to a new location and date, shifting its schedule), `PUT /events/{id}`, `DELETE /events/{id}` | ADMIN |
-| Bookings | `POST /bookings/{eventId}/book` (admins can book for another user with `userId`), `PUT /bookings/{bookingId}` (change the quantity), `DELETE /bookings/{id}` (cancel the booking), `GET /bookings/userBookings` (admins can pass `userId`) | ADMIN, GUEST |
-| Performances | `GET /performances` (scheduled slots, admins can pass `userId`), `POST /performances` (admins can pass `userId`), `DELETE /performances` (takes `performanceId`, marks it INACTIVE instead of removing it), `PUT /performances/{performanceId}` (change type and duration) | ADMIN, PERFORMER |
-| Users | `PUT /users/{userId}` (promote a guest to admin), `DELETE /users/{userId}` (soft delete, refused if the user has confirmed bookings), `GET /users/performers` (optionally only those available on a `date`), `GET /users/performers/{performerId}` | ADMIN |
-| Users | `PUT /users/me/availability` (replaces the weekly availability, the body lists the available days) | PERFORMER |
+Every request is scoped to the venue of the logged-in user. "Anyone" means any user, regardless of role. "Owner" means the user the resource belongs to. Soft deleted resources are not removed from the database: events and bookings get the status `CANCELLED`, performances get the status `INACTIVE`, and users are flagged as deleted. Swagger UI lists the full request and response models.
 
-Swagger UI lists the full request and response models.
+### Auth (`auth-controller`)
+
+| Endpoint | Description | Access |
+|----------|-------------|--------|
+| `POST /auth/signup` | Registers a new user account. | public |
+| `POST /auth/login` | Authenticates a user and returns a JWT. | public |
+
+### Events (`event-controller`)
+
+| Endpoint | Description | Access |
+|----------|-------------|--------|
+| `GET /events` | Lists all non cancelled (`CONFIRMED`) events within a venue. Paginated. | anyone |
+| `GET /events/{date}` | Returns the events on a given date. | anyone |
+| `POST /events` | Creates a new event through an event DTO. | ADMIN |
+| `POST /events/{eventId}` | Creates an event equal to the one having `eventId`, but with a different location and date. The schedule is shifted accordingly. | ADMIN |
+| `PUT /events/{id}` | Given an event DTO, updates the event. | ADMIN |
+| `DELETE /events/{id}` | Soft deletes (`CANCELLED`) an event. | ADMIN |
+
+### Bookings (`booking-controller`)
+
+Booking statuses are `CONFIRMED` and `CANCELLED`.
+
+| Endpoint | Description | Access |
+|----------|-------------|--------|
+| `POST /bookings/{eventId}/book` | Creates a new booking given `eventId`, `userId` and quantity. Admins can book for another user with `userId`. | ADMIN, owner |
+| `PUT /bookings/{bookingId}` | Modifies the number of seats tied to a specific booking. | ADMIN, owner |
+| `DELETE /bookings/{id}` | Given a booking id, soft deletes (`CANCELLED`) the booking. Can only be done for future bookings. | ADMIN, owner |
+| `GET /bookings/userBookings` | Given a `userId`, returns the list of bookings (both in the past and in the future). | ADMIN, owner |
+| `GET /whoami` | Returns the currently authenticated user's info. | authenticated |
+
+### Performances (`performance-controller`)
+
+| Endpoint | Description | Access |
+|----------|-------------|--------|
+| `GET /performances` | Given a performer id, retrieves all the time slots of their performances in future and non cancelled events. | ADMIN, PERFORMER |
+| `POST /performances` | Creates a new performance. Admins can pass `userId`. | ADMIN, owner |
+| `PUT /performances/{performanceId}` | Given a performance id, modifies its duration and type (poetry, live music, etc.). | ADMIN, owner |
+| `DELETE /performances` | Soft deletes (`INACTIVE`) a performance. Takes `performanceId`. | ADMIN, owner |
+
+### Users (`user-controller`)
+
+| Endpoint | Description | Access |
+|----------|-------------|--------|
+| `PUT /users/{userId}` | Makes a user admin. | ADMIN |
+| `DELETE /users/{userId}` | Soft deletes a user. Can be performed on guests, performers and admins. Refused if the user has confirmed bookings. | ADMIN |
+| `GET /users/performers` | Lists all performers available on a certain date. The date must be in the format `YYYY-MM-DD`. | ADMIN |
+| `GET /users/performers/{performerId}` | Returns one performer's details. | ADMIN |
+| `PUT /users/me/availability` | Lets the logged-in performer update their own availability by sending a string such as `"tuesday, friday"`. | PERFORMER |
 
 ## Running the tests
 

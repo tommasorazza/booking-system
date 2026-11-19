@@ -143,6 +143,7 @@ public class EventController {
     }
 
     /**
+     *
      * Deletes an event by its ID.
      *
      * Access restricted to users with ADMIN role.

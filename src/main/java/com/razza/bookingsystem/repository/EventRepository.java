@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static com.razza.bookingsystem.domain.Status.CANCELLED;
 
@@ -115,4 +116,15 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     AND e.status = :status
     """)
     List<Event> findByDateAndVenueAndStatus(OffsetDateTime start, OffsetDateTime end, Venue venue, Status status);
+
+
+    /**
+     * Retrieves a paginated list of events for a given venue.
+     *
+     * @param venue the venue whose events should be retrieved
+     * @param page the pagination information (page number, size, sorting)
+     * @param status the status of the event CONFIRMED/CANCELLED
+     * @return a Page containing non canceled Event objects for the specified venue
+     */
+    Page<Event> findByVenueAndStatus(Venue venue, Pageable pageable, Status status);
 }

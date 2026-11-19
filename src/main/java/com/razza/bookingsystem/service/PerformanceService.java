@@ -50,7 +50,7 @@ public class PerformanceService {
      *
      * Admins can retrieve the performances of any user within the venue.
      * Other users only get their own, and they must be performers.
-     * Only events in the future that are not cancelled are considered,
+     * Only events in the future that are not canceled are considered,
      * and start times are converted to the configured timezone.
      *
      * @param userId identifier of the target user (used only by admins)

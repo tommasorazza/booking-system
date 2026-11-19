@@ -277,7 +277,7 @@ public class EventService {
      * @return page of EventResponseDto
      */
     public Page<EventResponseDto> getAllEvents(Pageable pageable, Venue venue) {
-        return eventRepository.findByVenue(venue, pageable)
+        return eventRepository.findByVenueAndStatus(venue, pageable, Status.CONFIRMED)
                 .map(eventMapper::toDto);
     }
 
